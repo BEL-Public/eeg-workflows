@@ -7,7 +7,9 @@ from mne.io import read_raw_egi
 
 from argparse import ArgumentParser
 
-parser = ArgumentParser()
+parser = ArgumentParser(description='Generates averages of Slow Wave events \
+                                    marked in input .mff file and writes \
+                                    them as .fif evoked file.')
 parser.add_argument('mff', type=str, help='Path to input .mff file.')
 parser.add_argument('out', type=str, help='Path to output .fif file. \
                     Output filename should end with -ave.fif.')
