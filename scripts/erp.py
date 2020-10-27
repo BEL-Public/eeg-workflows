@@ -1,5 +1,11 @@
 #!/usr/bin/env python
-"""Average and .mff file according to specified event markers"""
+"""Average a raw .mff file according to specified event markers.
+
+The input file is read and searched for all provided labels.  Segments for all
+event markers of specified labels are extracted together with padding intervals
+`tminus` and `tplus` are extracted from the .mff file .  Averaging is performed
+per label.  All averaged segments are individually re-referenced to a grand
+channel average.  These are then written to the output file path."""
 
 from os.path import splitext, isdir, exists
 from functools import partial
@@ -9,6 +15,7 @@ from mne.io import read_raw_egi
 from argparse import ArgumentParser
 
 assert __name__ == "__main__"
+
 
 def MffType(filepath, exist_ok=True):
     """check that filepath is an .mff"""
@@ -35,16 +42,24 @@ def Padding(f):
     assert f >= 0.0, f"Negative padding: {f}"
     return f
 
+
 parser = ArgumentParser(description=__doc__)
 parser.add_argument('input_file', type=MffType, help='Path to input .mff file')
-parser.add_argument('output_file', type=partial(MffType, exist_ok=False), help='Path to output .mff file')
-parser.add_argument('--labels', '-l', type=LabelStr, required=True, help='Comma-separated list of event labels')
-parser.add_argument('--tminus', type=Padding, default=1.0, help='Padding prior to event in sec. (default=1.0)')
-parser.add_argument('--tplus', type=Padding, default=1.0, help='Padding after event in sec. (default=1.0)')
+parser.add_argument('output_file', type=partial(
+    MffType, exist_ok=False), help='Path to output .mff file')
+parser.add_argument('--labels', '-l', type=LabelStr,
+                    required=True, help='Comma-separated list of event labels')
+parser.add_argument('--tminus', type=Padding, default=1.0,
+                    help='Padding prior to event in sec. (default=1.0)')
+parser.add_argument('--tplus', type=Padding, default=1.0,
+                    help='Padding after event in sec. (default=1.0)')
 opt = parser.parse_args()
 
+# Read raw .mff file
 mff = read_raw_egi(opt.input_file)
 events = find_events(mff, shortest_event=1)
+
+# Extract events of specified labels
 event_id = {
     label: mff.event_id[label]
     for label in opt.labels
@@ -53,10 +68,12 @@ event_id = {
 epochs = Epochs(mff, events, event_id=event_id,
                 tmin=-opt.tminus, tmax=opt.tplus, baseline=None)
 
+# Average across all events by label and re-reference
 averages = []
 for label in epochs.event_id.keys():
     average = epochs[label].average()
     average, _ = set_eeg_reference(average, ref_channels='average')
     averages.append(average)
 
+# Write result
 write_evokeds(opt.output_file, averages)
