@@ -17,3 +17,20 @@ $ pip install -r requirements.txt
 # Install python scripts
 $ python setup.py install
 ```
+
+## Containerization
+
+We containerize all scripts with docker.  `make build` builds the docker image
+able to execute any of the scripts.
+
+To execute a script in a container, you need to map a folder with the input
+data into the container at "/app/volume".  This folder will be set as root for
+the execution of the script.  Here's an example that will print the options of
+"scripts/sws-pilot-workflow.py".
+
+```bash
+docker run -it \
+       -v `pwd`/volume:/app/volume \
+       docker.belco.tech/eegworkflow:latest \
+       sws-pilot-workflow.py -h
+```
