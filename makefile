@@ -8,4 +8,4 @@ docker-run:
 	docker run -it \
 		   -v `pwd`/volume:/app/volume \
 		   ${REGISTRY}/eegworkflow:${TAG} \
-		   sws-pilot-workflow.py
+		   sws-pilot-workflow.py -h
