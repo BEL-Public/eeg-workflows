@@ -3,12 +3,13 @@
 
 The input file is read and searched for all provided labels.  Segments for all
 event markers of specified labels are extracted together with padding intervals
-`tminus` and `tplus` are extracted from the .mff file .  Averaging is performed
-per label.  All averaged segments are individually re-referenced to a grand
-channel average.  These are then written to the output file path."""
+`left-padding` and `right-padding` are extracted from the .mff file .
+Averaging is performed per label.  Then, the data are re-referenced to an
+average reference.  These are then written to the output file path."""
 
 from os.path import splitext, isdir, exists
 from functools import partial
+from warnings import warn
 from mne import set_eeg_reference, find_events, Epochs, write_evokeds
 from mne.io import read_raw_egi
 
@@ -17,13 +18,17 @@ from argparse import ArgumentParser
 assert __name__ == "__main__"
 
 
-def MffType(filepath, exist_ok=True):
+def MffType(filepath, should_exist=True):
     """check that filepath is an .mff"""
     filepath = str(filepath)
-    assert exist_ok or not exists(filepath), f"File exists: '{filepath}'"
-    assert isdir(filepath), f"Not a folder: '{filepath}'"
     base, ext = splitext(filepath)
     assert ext.lower() == '.mff', f"Unknown file type: '{filepath}'"
+    if should_exist:
+        assert exists(filepath), f"File not found: '{filepath}'"
+        assert isdir(filepath), f"Not a folder: '{filepath}'"
+    else:
+        assert not exists(filepath), f"File exists: '{filepath}'"
+
     return filepath
 
 
@@ -46,12 +51,12 @@ def Padding(f):
 parser = ArgumentParser(description=__doc__)
 parser.add_argument('input_file', type=MffType, help='Path to input .mff file')
 parser.add_argument('output_file', type=partial(
-    MffType, exist_ok=False), help='Path to output .mff file')
+    MffType, should_exist=False), help='Path to output .mff file')
 parser.add_argument('--labels', '-l', type=LabelStr,
                     required=True, help='Comma-separated list of event labels')
-parser.add_argument('--tminus', type=Padding, default=1.0,
+parser.add_argument('--left-padding', type=Padding, default=1.0,
                     help='Padding prior to event in sec. (default=1.0)')
-parser.add_argument('--tplus', type=Padding, default=1.0,
+parser.add_argument('--right-padding', type=Padding, default=1.0,
                     help='Padding after event in sec. (default=1.0)')
 opt = parser.parse_args()
 
@@ -60,13 +65,18 @@ mff = read_raw_egi(opt.input_file)
 events = find_events(mff, shortest_event=1)
 
 # Extract events of specified labels
+for label in opt.labels:
+    if label not in mff.event_id:
+        warn(f"Label '{label}' not found among events\n"
+             f"Valid events: {mff.event_id.keys()}")
+
 event_id = {
     label: mff.event_id[label]
     for label in opt.labels
     if label in mff.event_id
 }
 epochs = Epochs(mff, events, event_id=event_id,
-                tmin=-opt.tminus, tmax=opt.tplus, baseline=None)
+                tmin=-opt.left_padding, tmax=opt.right_padding, baseline=None)
 
 # Average across all events by label and re-reference
 averages = []
