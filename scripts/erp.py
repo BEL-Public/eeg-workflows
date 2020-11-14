@@ -1,17 +1,21 @@
 #!/usr/bin/env python
-"""Average a raw .mff file according to specified event markers.
+"""Average a raw .mff or .edf file according to specified event markers.
 
 The input file is read and searched for all provided labels.  Segments for all
 event markers of specified labels are extracted together with padding intervals
-`left-padding` and `right-padding` are extracted from the .mff file .
+`left-padding` and `right-padding` are extracted from the input file.
 Averaging is performed per label.  Then, the data are re-referenced to an
-average reference.  These are then written to the output file path."""
+average reference if `average-ref` flag is present.  These are then written to
+the output file path as an .mff."""
 
-from os.path import splitext, isdir, isfile, exists
+from os.path import splitext, isdir, isfile, exists, join
 from functools import partial
-from mne import set_eeg_reference, find_events, events_from_annotations, \
-    Epochs, write_evokeds
+
+from mne import set_eeg_reference, find_events, events_from_annotations, Epochs
 from mne.io import read_raw_egi, read_raw_edf
+from mffpy import XML
+
+from eegwlib import evokeds_to_writer
 
 from argparse import ArgumentParser
 
@@ -65,6 +69,21 @@ def Padding(f):
     return f
 
 
+devices = [
+    'Amp Sample',
+    'Geodesic Sensor Net 128 2.1',
+    'Geodesic Sensor Net 256 2.1',
+    'Geodesic Sensor Net 64 2.0',
+    'HydroCel GSN 128 1.0',
+    'HydroCel GSN 256 1.0',
+    'HydroCel GSN 32 1.0',
+    'HydroCel GSN 64 1.0',
+    'MicroCel GSN 100 128 1.0',
+    'MicroCel GSN 100 256 1.0',
+    'MicroCel GSN 100 32 1.0',
+    'MicroCel GSN 100 64 1.0',
+]
+
 parser = ArgumentParser(description=__doc__)
 parser.add_argument('input_file', type=EEGType,
                     help='Path to input file (either .mff or .edf)')
@@ -78,6 +97,9 @@ parser.add_argument('--right-padding', type=Padding, default=1.0,
                     help='Padding after event in sec. (default=1.0)')
 parser.add_argument('--average-ref', action='store_true',
                     help='Set average reference')
+parser.add_argument('--device', type=str, choices=devices,
+                    help='This argument is required if input file is an .edf. '
+                         'Recording device for input data.')
 opt = parser.parse_args()
 
 # Read raw input file
@@ -86,7 +108,25 @@ if file_format == '.mff':
     raw = read_raw_egi(path)
     events = find_events(raw, shortest_event=1)
     event_id = raw.event_id
+    if opt.device:
+        device = opt.device
+    else:
+        try:
+            sensor_layout = XML.from_file(join(path, 'sensorLayout.xml'))
+            device = sensor_layout.name
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f'Could not find recording device info in {path}. Please '
+                f'specify a device from the following options: {devices}.'
+            )
 elif file_format == '.edf':
+    if opt.device:
+        device = opt.device
+    else:
+        raise ValueError(
+            f'Input file {path} is an .edf. A recording device must be '
+            f'specified from the following options: {devices}.'
+        )
     raw = read_raw_edf(path)
     events, event_id = events_from_annotations(raw)
 else:
@@ -113,4 +153,5 @@ for label in epochs.event_id.keys():
     averages.append(average)
 
 # Write result
-write_evokeds(opt.output_file, averages)
+W = evokeds_to_writer(averages, opt.output_file, device)
+W.write()
