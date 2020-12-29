@@ -10,7 +10,7 @@ from mffpy import Reader
 from ..write import evokeds_to_writer
 
 
-def test_evokeds_to_writer():
+def test_evokeds_to_writer() -> None:
     """test converting mne.Evoked object to mffpy.Writer"""
     sampling_rate = 250.0
     startdatetime = datetime(1999, 12, 25, 8, 30, 10, tzinfo=timezone.utc)
@@ -103,7 +103,7 @@ def test_evokeds_to_writer():
                              f'Were additional files written?')
 
 
-def test_evokeds_to_writer_bad_input():
+def test_evokeds_to_writer_bad_input() -> None:
     """test proper errors are thrown for bad input"""
     # Test non-matching infos
     ch_names = [f'E{i}' for i in range(1, 258)]

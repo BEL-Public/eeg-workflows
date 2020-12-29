@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 
@@ -74,7 +74,7 @@ def evokeds_to_writer(evokeds: List[Evoked], outfile: str,
     return W
 
 
-def get_data_block(evoked: Evoked, channels) -> np.array:
+def get_data_block(evoked: Evoked, channels: List[int]) -> np.array:
     """return block of data contained in ``evoked``
 
     Read signals from ``evoked`` and add return array of signals matching
@@ -85,7 +85,8 @@ def get_data_block(evoked: Evoked, channels) -> np.array:
     return signals
 
 
-def build_category_content(evoked: Evoked, idx):
+def build_category_content(evoked: Evoked, idx: int) -> \
+        List[Dict[str, object]]:
     """construct content dict for evoked category"""
     num_samples = evoked.data.shape[1]
     duration = int(1e6 * num_samples / evoked.info['sfreq'])  # microseconds
