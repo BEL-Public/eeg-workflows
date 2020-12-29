@@ -16,6 +16,8 @@ $ conda activate eegw
 $ pip install -r requirements.txt
 # Install python scripts
 $ python setup.py install
+# Run the tests
+$ make test
 ```
 
 ## Containerization
