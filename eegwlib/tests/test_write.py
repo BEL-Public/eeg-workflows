@@ -115,12 +115,12 @@ def test_evokeds_to_writer_bad_input() -> None:
         EvokedArray(data, info1, comment='Category A'),
         EvokedArray(data, info2, comment='Category B')
     ]
-    with pytest.raises(AssertionError) as exc_info:
+    with pytest.raises(ValueError) as exc_info1:
         evokeds_to_writer(evokeds, 'writeme.mff', 'HydroCel GSN 256 1.0')
     message = "Measurement info for category Category B different than " \
               "category Category A.\nDifference: ['lowpass'] value mismatch " \
               "(50.0, 125.0)\n['sfreq'] value mismatch (100.0, 250.0)\n"
-    assert str(exc_info.value) == message
+    assert str(exc_info1.value) == message
     # Test no EEG channels
     ch_names = ['EMG', 'ECG']
     ch_types = ['emg', 'ecg']
@@ -128,8 +128,8 @@ def test_evokeds_to_writer_bad_input() -> None:
     info['meas_date'] = datetime(1999, 12, 25, 8, 30, 10, tzinfo=timezone.utc)
     data = np.random.randn(2, 5)
     evokeds = [EvokedArray(data, info)]
-    with pytest.raises(AssertionError) as exc_info:
+    with pytest.raises(AssertionError) as exc_info2:
         evokeds_to_writer(evokeds, 'writeme.mff', 'HydroCel GSN 256 1.0')
     message = "No EEG channels found in averaged data.\n" \
               "Channels present: ['EMG', 'ECG']"
-    assert str(exc_info.value) == message
+    assert str(exc_info2.value) == message

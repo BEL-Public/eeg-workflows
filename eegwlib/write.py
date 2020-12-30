@@ -14,21 +14,21 @@ def evokeds_to_writer(evokeds: List[Evoked], outfile: str,
 
     Parameters
     ----------
-    evokeds : list[mne.Evoked]
+    evokeds
         List of Evoked objects to be written to .mff.
-    outfile : str
+    outfile
         Path to output .mff file.
-    recording_device : str
+    recording_device
         Recording device type (e.g. 'Hydrocel GSN 256 1.0').
 
     Returns
     -------
-    W : instance of mffpy.Writer
+    W
         The Writer object has all necessary files added and is ready to write.
 
     Raises
     ------
-    AssertionError
+    ValueError
         If Evoked.info is not identical across all Evoked objects in
         ``evokeds``.
     AssertionError
@@ -39,7 +39,7 @@ def evokeds_to_writer(evokeds: List[Evoked], outfile: str,
     for evoked in evokeds:
         diff = object_diff(evoked.info, evokeds_info)
         if diff != '':
-            raise AssertionError(
+            raise ValueError(
                 f'Measurement info for category {evoked.comment} different '
                 f'than category {evokeds[0].comment}.\nDifference: {diff}'
             )

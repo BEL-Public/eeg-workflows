@@ -11,6 +11,6 @@ docker-run:
 		   sws-pilot-workflow.py -h
 
 test:
+	flake8 eegwlib
 	mypy --ignore-missing-imports --strict eegwlib
 	pytest --cov
-	flake8 eegwlib
