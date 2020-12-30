@@ -26,7 +26,7 @@ def test_evokeds_to_writer() -> None:
         EvokedArray(data_b, info, tmin=-0.02, comment='Category B', nave=10)
     ]
     filepath = join('.cache', 'write_evokeds.mff')
-    W = evokeds_to_writer(evokeds, filepath, 'Hydrocel GSN 256 1.0')
+    W = evokeds_to_writer(evokeds, filepath, 'HydroCel GSN 256 1.0')
     assert W.filename == filepath
     assert W.num_bin_files == 1
     expected_files = [
