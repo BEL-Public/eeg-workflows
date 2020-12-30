@@ -105,6 +105,11 @@ def test_evokeds_to_writer() -> None:
 
 def test_evokeds_to_writer_bad_input() -> None:
     """test proper errors are thrown for bad input"""
+    # Test empty list
+    with pytest.raises(ValueError) as exc_info1:
+        evokeds_to_writer([], 'writeme.mff', 'HydroCel GSN 256 1.0')
+    assert str(exc_info1.value) == 'No Evoked objects provided. ' \
+                                   'Instead got emtpy list.'
     # Test non-matching infos
     ch_names = [f'E{i}' for i in range(1, 258)]
     ch_types = ['eeg'] * 257
@@ -115,12 +120,12 @@ def test_evokeds_to_writer_bad_input() -> None:
         EvokedArray(data, info1, comment='Category A'),
         EvokedArray(data, info2, comment='Category B')
     ]
-    with pytest.raises(ValueError) as exc_info1:
+    with pytest.raises(ValueError) as exc_info2:
         evokeds_to_writer(evokeds, 'writeme.mff', 'HydroCel GSN 256 1.0')
     message = "Measurement info for category Category B different than " \
               "category Category A.\nDifference: ['lowpass'] value mismatch " \
               "(50.0, 125.0)\n['sfreq'] value mismatch (100.0, 250.0)\n"
-    assert str(exc_info1.value) == message
+    assert str(exc_info2.value) == message
     # Test no EEG channels
     ch_names = ['EMG', 'ECG']
     ch_types = ['emg', 'ecg']
@@ -128,8 +133,8 @@ def test_evokeds_to_writer_bad_input() -> None:
     info['meas_date'] = datetime(1999, 12, 25, 8, 30, 10, tzinfo=timezone.utc)
     data = np.random.randn(2, 5)
     evokeds = [EvokedArray(data, info)]
-    with pytest.raises(AssertionError) as exc_info2:
+    with pytest.raises(AssertionError) as exc_info3:
         evokeds_to_writer(evokeds, 'writeme.mff', 'HydroCel GSN 256 1.0')
     message = "No EEG channels found in averaged data.\n" \
               "Channels present: ['EMG', 'ECG']"
-    assert str(exc_info2.value) == message
+    assert str(exc_info3.value) == message

@@ -29,11 +29,15 @@ def evokeds_to_writer(evokeds: List[Evoked], outfile: str,
     Raises
     ------
     ValueError
+        If ``evokeds`` is an empty list.
+    ValueError
         If Evoked.info is not identical across all Evoked objects in
         ``evokeds``.
     AssertionError
         If no EEG channels are found in the Evoked objects.
     """
+    if len(evokeds) == 0:
+        raise ValueError('No Evoked objects provided. Instead got emtpy list.')
     # All evoked objects should have the same info
     evokeds_info = evokeds[0].info
     for evoked in evokeds:
