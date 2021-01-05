@@ -9,3 +9,8 @@ docker-run:
 		   -v `pwd`/volume:/app/volume \
 		   ${REGISTRY}/eegworkflow:${TAG} \
 		   sws-pilot-workflow.py -h
+
+test:
+	flake8 eegwlib
+	mypy --ignore-missing-imports --strict eegwlib
+	pytest --cov

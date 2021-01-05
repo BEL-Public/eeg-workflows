@@ -2,23 +2,28 @@
 """Average a raw .mff file according to specified event markers.
 
 The input file is read and searched for all provided labels.  Segments for all
-event markers of specified labels are extracted together with padding intervals
-`left-padding` and `right-padding` are extracted from the .mff file .
-Averaging is performed per label.  Then, the data are re-referenced to an
-average reference.  These are then written to the output file path."""
+event markers of specified labels with padding intervals `left-padding` and
+`right-padding` are extracted from the input file.  Averaging is performed per
+label.  Then, the data are re-referenced to an average reference if
+`average-ref` flag is present.  These are then written to the output file path
+as an .mff."""
 
-from os.path import splitext, isdir, exists
+from os.path import splitext, isdir, exists, join
 from functools import partial
-from warnings import warn
-from mne import set_eeg_reference, find_events, Epochs, write_evokeds
+from typing import List, Union
+
+from mne import set_eeg_reference, find_events, Epochs
 from mne.io import read_raw_egi
+from mffpy import XML
+
+from eegwlib import evokeds_to_writer
 
 from argparse import ArgumentParser
 
 assert __name__ == "__main__"
 
 
-def MffType(filepath, should_exist=True):
+def MffType(filepath: str, should_exist: bool = True) -> str:
     """check that filepath is an .mff"""
     filepath = str(filepath)
     base, ext = splitext(filepath)
@@ -32,7 +37,7 @@ def MffType(filepath, should_exist=True):
     return filepath
 
 
-def LabelStr(labels):
+def LabelStr(labels: str) -> List[str]:
     """Check that labels are valid and return as list"""
     labels = str(labels)
     labels = labels.split(',')
@@ -41,7 +46,7 @@ def LabelStr(labels):
     return labels
 
 
-def Padding(f):
+def Padding(f: Union[str, float]):
     """Check that float is positive"""
     f = float(f)
     assert f >= 0.0, f"Negative padding: {f}"
@@ -49,41 +54,48 @@ def Padding(f):
 
 
 parser = ArgumentParser(description=__doc__)
-parser.add_argument('input_file', type=MffType, help='Path to input .mff file')
-parser.add_argument('output_file', type=partial(
-    MffType, should_exist=False), help='Path to output .mff file')
-parser.add_argument('--labels', '-l', type=LabelStr,
-                    required=True, help='Comma-separated list of event labels')
+parser.add_argument('input_file', type=MffType,
+                    help='Path to input .mff file')
+parser.add_argument('output_file', type=partial(MffType, should_exist=False),
+                    help='Path to output .mff file')
+parser.add_argument('--labels', '-l', type=LabelStr, required=True,
+                    help='Comma-separated list of event labels')
 parser.add_argument('--left-padding', type=Padding, default=1.0,
                     help='Padding prior to event in sec. (default=1.0)')
 parser.add_argument('--right-padding', type=Padding, default=1.0,
                     help='Padding after event in sec. (default=1.0)')
+parser.add_argument('--average-ref', action='store_true',
+                    help='Set average reference')
 opt = parser.parse_args()
 
-# Read raw .mff file
-mff = read_raw_egi(opt.input_file)
-events = find_events(mff, shortest_event=1)
+# Read raw input file
+raw = read_raw_egi(opt.input_file)
+events = find_events(raw, shortest_event=1)
+event_id = raw.event_id
+sensor_layout = XML.from_file(join(opt.input_file, 'sensorLayout.xml'))
+device = sensor_layout.name
 
-# Extract events of specified labels
+# Get event IDs of specified labels
+segmentation_events = {}
 for label in opt.labels:
-    if label not in mff.event_id:
-        warn(f"Label '{label}' not found among events\n"
-             f"Valid events: {mff.event_id.keys()}")
+    if label in event_id:
+        segmentation_events[label] = event_id[label]
+    else:
+        raise ValueError(f"Label '{label}' not found among events.\n"
+                         f"Valid event labels: {event_id.keys()}")
 
-event_id = {
-    label: mff.event_id[label]
-    for label in opt.labels
-    if label in mff.event_id
-}
-epochs = Epochs(mff, events, event_id=event_id,
+# Segment according to specified event labels
+epochs = Epochs(raw, events, event_id=segmentation_events,
                 tmin=-opt.left_padding, tmax=opt.right_padding, baseline=None)
 
 # Average across all events by label and re-reference
 averages = []
 for label in epochs.event_id.keys():
     average = epochs[label].average()
-    average, _ = set_eeg_reference(average, ref_channels='average')
+    if opt.average_ref:
+        average, _ = set_eeg_reference(average, ref_channels='average')
     averages.append(average)
 
 # Write result
-write_evokeds(opt.output_file, averages)
+W = evokeds_to_writer(averages, opt.output_file, device)
+W.write()
