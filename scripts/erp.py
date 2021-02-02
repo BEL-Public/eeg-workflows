@@ -3,10 +3,12 @@
 
 The input file is read and searched for all provided labels.  Segments for all
 event markers of specified labels with padding intervals `left-padding` and
-`right-padding` are extracted from the input file.  Averaging is performed per
-label.  Then, the data are re-referenced to an average reference if
-`average-ref` flag is present.  These are then written to the output file path
-as an .mff."""
+`right-padding` are extracted from the input file.  If `artifact-detection`
+argument is provided, bad segments are dropped based on the specified
+peak-to-peak amplitude criteria. Averaging is performed per label.
+Then, the data are re-referenced to an average reference if `average-ref` flag
+is present.  These are then written to the output file path as an .mff.
+"""
 
 from os.path import splitext, isdir, exists, join
 from functools import partial
@@ -46,10 +48,10 @@ def LabelStr(labels: str) -> List[str]:
     return labels
 
 
-def Padding(f: Union[str, float]):
+def FloatPositive(f: Union[str, float]):
     """Check that float is positive"""
     f = float(f)
-    assert f >= 0.0, f"Negative padding: {f}"
+    assert f >= 0.0, f"Negative value: {f}"
     return f
 
 
@@ -60,10 +62,14 @@ parser.add_argument('output_file', type=partial(MffType, should_exist=False),
                     help='Path to output .mff file')
 parser.add_argument('--labels', '-l', type=LabelStr, required=True,
                     help='Comma-separated list of event labels')
-parser.add_argument('--left-padding', type=Padding, default=1.0,
+parser.add_argument('--left-padding', type=FloatPositive, default=1.0,
                     help='Padding prior to event in sec. (default=1.0)')
-parser.add_argument('--right-padding', type=Padding, default=1.0,
+parser.add_argument('--right-padding', type=FloatPositive, default=1.0,
                     help='Padding after event in sec. (default=1.0)')
+parser.add_argument('--artifact-detection', type=FloatPositive,
+                    help='Peak-to-peak amplitude criteria for bad segment '
+                         'rejection in μV. Bad segments will be dropped only '
+                         'if this argument is provided.')
 parser.add_argument('--average-ref', action='store_true',
                     help='Set average reference')
 opt = parser.parse_args()
@@ -87,6 +93,17 @@ for label in opt.labels:
 # Segment according to specified event labels
 epochs = Epochs(raw, events, event_id=segmentation_events,
                 tmin=-opt.left_padding, tmax=opt.right_padding, baseline=None)
+
+# Drop bad segments
+if opt.artifact_detection is not None:
+    criteria = opt.artifact_detection / 1e6  # convert to volts
+    num_epochs_before_drop = len(epochs.selection)
+    epochs = epochs.drop_bad(reject=dict(eeg=criteria), verbose='WARNING')
+    if len(epochs.selection) == 0:
+        raise RuntimeError('All segments were rejected.')
+    print(f'{num_epochs_before_drop - len(epochs.selection)} segments were '
+          f'rejected based on {opt.artifact_detection} μV peak-to-peak '
+          'amplitude criteria.')
 
 # Average across all events by label and re-reference
 averages = []
