@@ -100,7 +100,9 @@ if opt.artifact_detection is not None:
     num_epochs_before_drop = len(epochs.selection)
     epochs = epochs.drop_bad(reject=dict(eeg=criteria), verbose='WARNING')
     if len(epochs.selection) == 0:
-        raise RuntimeError('All segments were rejected.')
+        raise ValueError('All segments were rejected with '
+                         f'{opt.artifact_detection} μV peak-to-peak '
+                         'amplitude criteria.')
     print(f'{num_epochs_before_drop - len(epochs.selection)} segments were '
           f'rejected based on {opt.artifact_detection} μV peak-to-peak '
           'amplitude criteria.')
