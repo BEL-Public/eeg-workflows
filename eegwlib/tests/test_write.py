@@ -4,29 +4,26 @@ from os import rmdir, remove
 from os.path import join
 
 import numpy as np
-from mne import EvokedArray, create_info
 from mffpy import Reader
 
-from ..write import evokeds_to_writer
+from ..write import write_averaged
+from ..average import Average
 
 
-def test_evokeds_to_writer() -> None:
-    """test converting mne.Evoked object to mffpy.Writer"""
+def test_write_averaged() -> None:
+    """Test writing `Averaged` objects to MFF"""
     sampling_rate = 250.0
     startdatetime = datetime(1999, 12, 25, 8, 30, 10, tzinfo=timezone.utc)
-    ch_names = [f'E{i}' for i in range(1, 258)] + ['ECG', 'EMG']
-    ch_types = ['eeg'] * 257 + ['ecg', 'emg']
-    info = create_info(ch_names, sampling_rate, ch_types)
-    info['meas_date'] = startdatetime
-    info['bads'] = ['E3', 'E90', 'EMG']
-    data_a = np.random.randn(259, 11)
-    data_b = np.random.randn(259, 11)
-    evokeds = [
-        EvokedArray(data_a, info, tmin=-0.02, comment='Category A', nave=10),
-        EvokedArray(data_b, info, tmin=-0.02, comment='Category B', nave=10)
+    bads = [34, 40, 53]
+    data_a = np.random.randn(129, 11).astype(np.float32)
+    data_b = np.random.randn(129, 11).astype(np.float32)
+    averages = [
+        Average('Category A', [data_a], center=5, sr=sampling_rate, bads=bads),
+        Average('Category B', [data_b], center=5, sr=sampling_rate, bads=bads)
     ]
-    filepath = join('.cache', 'write_evokeds.mff')
-    W = evokeds_to_writer(evokeds, filepath, 'HydroCel GSN 256 1.0')
+    filepath = join('.cache', 'test_averaged.mff')
+    W = write_averaged(averages, filepath, startdatetime=startdatetime,
+                       device='HydroCel GSN 256 1.0')
     assert W.filename == filepath
     assert W.num_bin_files == 1
     expected_files = [
@@ -35,15 +32,14 @@ def test_evokeds_to_writer() -> None:
     ]
     for file in expected_files:
         assert file in W.files
-    # Write the .mff and check the result
-    W.write()
+    # Check the written file
     R = Reader(filepath)
     assert R.sampling_rates['EEG'] == int(sampling_rate)
     assert R.startdatetime == startdatetime
-    expected_signals = [data_a * 1e6, data_b * 1e6]
+    expected_signals = [data_a, data_b]
     for i in range(2):
         signals, t0 = R.get_physical_samples_from_epoch(R.epochs[i])['EEG']
-        assert signals == pytest.approx(expected_signals[i][0:257])
+        assert signals == pytest.approx(expected_signals[i])
     expected_categories = {
         'Category A': [
             {
@@ -57,13 +53,13 @@ def test_evokeds_to_writer() -> None:
                     {
                         'signalBin': 1,
                         'exclusion': 'badChannels',
-                        'channels': [3, 90]
+                        'channels': bads
                     }
                 ],
                 'keys': {
                     '#seg': {
                         'type': 'long',
-                        'data': 10
+                        'data': 1
                     }
                 }
             }
@@ -80,13 +76,13 @@ def test_evokeds_to_writer() -> None:
                     {
                         'signalBin': 1,
                         'exclusion': 'badChannels',
-                        'channels': [3, 90]
+                        'channels': bads
                     }
                 ],
                 'keys': {
                     '#seg': {
                         'type': 'long',
-                        'data': 10
+                        'data': 1
                     }
                 }
             }
@@ -103,38 +99,29 @@ def test_evokeds_to_writer() -> None:
                              f'Were additional files written?')
 
 
-def test_evokeds_to_writer_bad_input() -> None:
-    """test proper errors are thrown for bad input"""
-    # Test empty list
+def test_write_averaged_bad_input() -> None:
+    """Test proper errors are thrown for bad input"""
+    # Test non-matching data shapes
+    startdatetime = datetime(1999, 12, 25, 8, 30, 10, tzinfo=timezone.utc)
+    device = 'HydroCel GSN 256 1.0'
+    data_a = np.random.randn(32, 12).astype(np.float32)
+    data_b = np.random.randn(32, 11).astype(np.float32)
+    averages = [
+        Average('a', [data_a], center=5, sr=250.0),
+        Average('b', [data_b], center=5, sr=250.0)
+    ]
     with pytest.raises(ValueError) as exc_info1:
-        evokeds_to_writer([], 'writeme.mff', 'HydroCel GSN 256 1.0')
-    assert str(exc_info1.value) == 'No Evoked objects provided. ' \
-                                   'Instead got emtpy list.'
-    # Test non-matching infos
-    ch_names = [f'E{i}' for i in range(1, 258)]
-    ch_types = ['eeg'] * 257
-    info1 = create_info(ch_names, 250.0, ch_types)
-    info2 = create_info(ch_names, 100.0, ch_types)
-    data = np.random.randn(257, 5)
-    evokeds = [
-        EvokedArray(data, info1, comment='Category A'),
-        EvokedArray(data, info2, comment='Category B')
+        write_averaged(averages, 'writeme.mff', startdatetime, device)
+    message = 'Averaged data blocks of different shape: (32, 11) != (32, 12)'
+    assert str(exc_info1.value) == message
+
+    # Test non-matching sampling rates
+    data_c = np.random.randn(32, 12).astype(np.float32)
+    averages = [
+        Average('a', [data_a], center=5, sr=250.0),
+        Average('c', [data_c], center=5, sr=100.0)
     ]
     with pytest.raises(ValueError) as exc_info2:
-        evokeds_to_writer(evokeds, 'writeme.mff', 'HydroCel GSN 256 1.0')
-    message = "Measurement info for category Category B different than " \
-              "category Category A.\nDifference: ['lowpass'] value mismatch " \
-              "(50.0, 125.0)\n['sfreq'] value mismatch (100.0, 250.0)\n"
+        write_averaged(averages, 'writeme.mff', startdatetime, device)
+    message = 'Averages have different sampling rates: 100.0 != 250.0'
     assert str(exc_info2.value) == message
-    # Test no EEG channels
-    ch_names = ['EMG', 'ECG']
-    ch_types = ['emg', 'ecg']
-    info = create_info(ch_names, 250.0, ch_types)
-    info['meas_date'] = datetime(1999, 12, 25, 8, 30, 10, tzinfo=timezone.utc)
-    data = np.random.randn(2, 5)
-    evokeds = [EvokedArray(data, info)]
-    with pytest.raises(AssertionError) as exc_info3:
-        evokeds_to_writer(evokeds, 'writeme.mff', 'HydroCel GSN 256 1.0')
-    message = "No EEG channels found in averaged data.\n" \
-              "Channels present: ['EMG', 'ECG']"
-    assert str(exc_info3.value) == message
