@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional
 
 import numpy as np
 from scipy import signal
@@ -6,8 +6,8 @@ from functools import lru_cache
 
 
 @lru_cache(maxsize=128)
-def butter(order: int, sr: float, fmin: Union[float, None] = None,
-           fmax: Union[float, None] = None) -> signal.butter:
+def butter(order: int, sr: float, fmin: Optional[float] = None,
+           fmax: Optional[float] = None) -> signal.butter:
     """Design a Butterworth filter and return the coefficients
 
     Parameters
@@ -61,8 +61,8 @@ def butter(order: int, sr: float, fmin: Union[float, None] = None,
 
 
 def filtfilt(arr: np.array, order: int, sr: float,
-             fmin: Union[float, None] = None,
-             fmax: Union[float, None] = None) -> np.array:
+             fmin: Optional[float] = None,
+             fmax: Optional[float] = None) -> np.array:
     """Apply a forward-backward Butterworth filter to `arr`
 
     Parameters

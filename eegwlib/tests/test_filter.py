@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 
 import pytest
 import numpy as np
@@ -13,7 +13,7 @@ from ..filter import butter, filtfilt
     (1.0, None, 0.015625, 'highpass'),
     (None, 40.0, 0.625, 'lowpass'),
 ])
-def test_butter(fmin: Union[float, None], fmax: Union[float, None],
+def test_butter(fmin: Optional[float], fmax: Optional[float],
                 band: Union[np.array, float], btype: str) -> None:
     """Test Butterworth filter design with the 4 filter varieties"""
     expected_coefs = signal.butter(4, band, btype=btype, output='sos')
@@ -25,7 +25,7 @@ def test_butter(fmin: Union[float, None], fmax: Union[float, None],
     (1.0, 1.0, 'fmin: [1.0] and fmax: [1.0] cannot be equal.'),
     (None, None, 'Neither fmin nor fmax provided.'),
 ])
-def test_butter_bad_input(fmin: Union[float, None], fmax: Union[float, None],
+def test_butter_bad_input(fmin: Optional[float], fmax: Optional[float],
                           message: str) -> None:
     """Test Butterworth filter design with bad critical frequencies"""
     with pytest.raises(ValueError) as exc_info:
