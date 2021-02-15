@@ -22,7 +22,7 @@ def test_butter(fmin: Optional[float], fmax: Optional[float],
 
 
 @pytest.mark.parametrize('fmin,fmax,message', [
-    (1.0, 1.0, 'fmin: [1.0] and fmax: [1.0] cannot be equal.'),
+    (1.0, 1.0, 'fmin and fmax cannot be equal.'),
     (None, None, 'Neither fmin nor fmax provided.'),
 ])
 def test_butter_bad_input(fmin: Optional[float], fmax: Optional[float],
@@ -46,6 +46,9 @@ def test_filtfilt() -> None:
     ]], dtype=np.float32)
     filtered_signals = filtfilt(input_signals, 4, 10.0, fmax=1.0)
     assert filtered_signals == pytest.approx(expected_signals)
+    # Test no critical frequency values returns unfiltered array
+    unfiltered_signals = filtfilt(input_signals, 4, 10.0)
+    assert unfiltered_signals == pytest.approx(input_signals)
 
 
 def test_filtfilt_bad_shape() -> None:

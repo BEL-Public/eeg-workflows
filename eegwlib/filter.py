@@ -40,21 +40,23 @@ def butter(order: int, sr: float, fmin: Optional[float] = None,
     fmax == None: Highpass
     fmin == None: Lowpass
     """
+    # Convert critical frequencies to half-cycles/sample
+    fmin = 2 * fmin / sr if fmin else None
+    fmax = 2 * fmax / sr if fmax else None
     if fmin and fmax:
         if fmin < fmax:
             btype = 'bandpass'
         elif fmin > fmax:
             btype = 'bandstop'
         else:
-            raise ValueError(f'fmin: [{fmin}] and fmax: [{fmax}] '
-                             'cannot be equal.')
-        band = 2 * np.array([fmin, fmax], dtype=np.float32) / sr
+            raise ValueError(f'fmin and fmax cannot be equal.')
+        band = np.array([fmin, fmax], dtype=np.float32)
     elif fmin:
         btype = 'highpass'
-        band = 2 * fmin / sr
+        band = fmin
     elif fmax:
         btype = 'lowpass'
-        band = 2 * fmax / sr
+        band = fmax
     else:
         raise ValueError('Neither fmin nor fmax provided.')
     return signal.butter(order, band, btype=btype, output='sos')
@@ -80,20 +82,20 @@ def filtfilt(arr: np.array, order: int, sr: float,
 
     Returns
     -------
-    The filtered signals
+    The filtered signals. If `fmin` and `fmax` are both None,
+    `arr` is returned.
 
     Raises
     ------
     ValueError
         If `arr` is not a 2-dimensional array
-
-    Notes
-    -----
-    Either `fmin` or `fmax` or both must be given a value
     """
     if len(arr.shape) != 2:
         raise ValueError('Input array must be 2-dimensional. '
                          f'Got shape: {arr.shape}')
-    coefs = butter(order, sr, fmin, fmax)
-    return signal.sosfiltfilt(coefs, arr, axis=1,
-                              padtype='constant').astype(np.float32)
+    if fmin is None and fmax is None:
+        return arr
+    else:
+        coefs = butter(order, sr, fmin, fmax)
+        return signal.sosfiltfilt(coefs, arr, axis=1,
+                                  padtype='constant').astype(np.float32)

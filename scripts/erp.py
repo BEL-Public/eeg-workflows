@@ -110,7 +110,6 @@ raw = Reader(opt.input_file)
 sampling_rate = raw.sampling_rates['EEG']
 
 # Get raw signal blocks and apply filter if specified
-apply_filter = opt.highpass is not None or opt.lowpass is not None
 data = [
     {
         't0': epoch.t0,
@@ -121,8 +120,7 @@ data = [
             sr=sampling_rate,
             fmin=opt.highpass,
             fmax=opt.lowpass
-        ) if apply_filter else
-        raw.get_physical_samples_from_epoch(epoch)['EEG'][0]
+        )
     }
     for epoch in raw.epochs
 ]
