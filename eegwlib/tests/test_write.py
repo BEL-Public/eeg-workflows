@@ -112,16 +112,19 @@ def test_write_averaged_bad_input() -> None:
     ]
     with pytest.raises(ValueError) as exc_info1:
         write_averaged(averages, 'writeme.mff', startdatetime, device)
-    message = 'Averaged data blocks of different shape: (32, 11) != (32, 12)'
+    message = 'Averaged data blocks of different shape: ' \
+              f'{data_b.shape} != {data_a.shape}'
     assert str(exc_info1.value) == message
 
     # Test non-matching sampling rates
     data_c = np.random.randn(32, 12).astype(np.float32)
+    sr_a = 250.0
+    sr_c = 100.0
     averages = [
-        Average('a', [data_a], center=5, sr=250.0),
-        Average('c', [data_c], center=5, sr=100.0)
+        Average('a', [data_a], center=5, sr=sr_a),
+        Average('c', [data_c], center=5, sr=sr_c)
     ]
     with pytest.raises(ValueError) as exc_info2:
         write_averaged(averages, 'writeme.mff', startdatetime, device)
-    message = 'Averages have different sampling rates: 100.0 != 250.0'
+    message = f'Averages have different sampling rates: {sr_c} != {sr_a}'
     assert str(exc_info2.value) == message

@@ -59,5 +59,5 @@ def test_filtfilt_bad_shape() -> None:
     ], dtype=np.float32)
     with pytest.raises(ValueError) as exc_info:
         filtfilt(array_1d, 4, 10.0, fmax=1.0)
-    message = 'Input array must be 2-dimensional. Got shape: (16,)'
+    message = f'Input array must be 2-dimensional. Got shape: {array_1d.shape}'
     assert str(exc_info.value) == message

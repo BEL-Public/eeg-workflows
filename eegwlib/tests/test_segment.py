@@ -50,5 +50,5 @@ def test_slice_block_bad_shape() -> None:
     array = np.array([0, 4, 2])
     with pytest.raises(ValueError) as exc_info:
         slice_block(array, 2.0, 1.0, 1.0, 1.0)
-    message = 'Input array must be 2-dimensional. Got shape: (3,)'
+    message = f'Input array must be 2-dimensional. Got shape: {array.shape}'
     assert str(exc_info.value) == message
