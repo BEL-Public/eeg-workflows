@@ -17,7 +17,7 @@ def slice_block(data_block: np.array, center: float,
         The center of the slice in seconds relative
         to the beginning of `data_block`
     padl
-        Time padding to the left of `center` in (sec)
+        Time padding to the left of `center` (sec)
     padr
         Time padding to the right of `center` (sec)
     sr
@@ -34,15 +34,16 @@ def slice_block(data_block: np.array, center: float,
 
     Notes
     -----
-    Because `center` is given in seconds, it is assumed this time point will
-    fall between two consecutive samples in `data_block`. From this time point,
-    the extracted slice is extended out in either direction by the number of
-    samples that fit into `padl` and `padr`.
+    Treating the first sample of `data_block` as time 0, the two consecutive
+    samples between which `center` falls are determined. From these two
+    samples, the extracted slice is extended out to the left by the number
+    of samples that fit into `padl` and extended out to the right by the
+    number of samples that fit into `padr`.
     """
     if len(data_block.shape) != 2:
         raise ValueError('Input array must be 2-dimensional. '
                          f'Got shape: {data_block.shape}')
-    center_idx = int(center * sr)
+    center_idx = int(center * sr) + 1
     left_idx = center_idx - int(padl * sr)
     right_idx = center_idx + int(padr * sr)
     slice_indices = np.array(range(left_idx, right_idx))
