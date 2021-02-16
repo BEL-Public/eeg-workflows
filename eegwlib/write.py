@@ -63,7 +63,7 @@ def write_averaged(averages: List[Average], outfile: str,
         categories_content[average.category] = [
             average.build_category_content(begin_time)
         ]
-        begin_time += average.num_samples() / average.sampling_rate * 1e6
+        begin_time += int(average.num_samples() / average.sampling_rate * 1e6)
 
     W.addxml('categories', categories=categories_content)
 

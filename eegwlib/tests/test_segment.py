@@ -31,7 +31,7 @@ def test_slice_block(center: float, padl: float, padr: float) -> None:
     (0.9, 1.1),
     (1.8, 1.4)
 ])
-def test_slicing_returns_same_shape(padl: float, padr: float):
+def test_slicing_returns_same_shape(padl: float, padr: float) -> None:
     """Test slicing at different centers with same
     padding returns segments of same shape"""
     array = np.array([[3, 6, 7, 4, 2, 1, 7, 5, 3, 0],

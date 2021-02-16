@@ -49,7 +49,7 @@ def butter(order: int, sr: float, fmin: Optional[float] = None,
         elif fmin > fmax:
             btype = 'bandstop'
         else:
-            raise ValueError(f'fmin and fmax cannot be equal.')
+            raise ValueError('fmin and fmax cannot be equal.')
         band = np.array([fmin, fmax], dtype=np.float32)
     elif fmin:
         btype = 'highpass'

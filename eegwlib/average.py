@@ -46,7 +46,7 @@ class Average:
 
     def num_samples(self) -> int:
         """Return the duration of the averaged data in samples"""
-        return self.segments[0].shape[1]
+        return int(self.segments[0].shape[1])
 
     def num_segments(self) -> int:
         """Return number of segments going into average"""
