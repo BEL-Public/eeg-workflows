@@ -110,20 +110,19 @@ raw = Reader(opt.input_file)
 sampling_rate = raw.sampling_rates['EEG']
 
 # Get raw signal blocks and apply filter if specified
-data = [
-    {
-        't0': epoch.t0,
-        't1': epoch.t1,
-        'data': filtfilt(
-            raw.get_physical_samples_from_epoch(epoch)['EEG'][0],
-            order=opt.filter_order,
-            sr=sampling_rate,
-            fmin=opt.highpass,
-            fmax=opt.lowpass
-        )
-    }
-    for epoch in raw.epochs
-]
+data = []
+for epoch in raw.epochs:
+    signals = raw.get_physical_samples_from_epoch(epoch)['EEG'][0]
+    filtered_signals = filtfilt(signals, order=opt.filter_order,
+                                sr=sampling_rate, fmin=opt.highpass,
+                                fmax=opt.lowpass)
+    data.append(
+        {
+            't0': epoch.t0,
+            't1': epoch.t1,
+            'data': filtered_signals
+        }
+    )
 
 # Extract relative times for events of specified labels
 all_codes = []
