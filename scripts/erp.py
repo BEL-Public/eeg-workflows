@@ -130,23 +130,23 @@ event_times = {label: [] for label in opt.labels}
 for file in raw.directory.files_by_type['.xml']:
     with raw.directory.filepointer(splitext(file)[0]) as fp:
         xml_root = parse(fp).getroot()
-        if xml_root.tag == '{http://www.egi.com/event_mff}eventTrack':
-            events = EventTrack(xml_root).events
-            for event in events:
-                all_codes.add(event['code'])
-                if event['code'] in opt.labels:
-                    event_times[event['code']].append((
-                        event['beginTime'] - raw.startdatetime
-                    ).total_seconds())
+        if not xml_root.tag == '{http://www.egi.com/event_mff}eventTrack':
+            continue
+        events = EventTrack(xml_root).events
+        for event in events:
+            all_codes.add(event['code'])
+            if event['code'] in opt.labels:
+                event_times[event['code']].append((
+                    event['beginTime'] - raw.startdatetime
+                ).total_seconds())
 
 event_times_sorted = {}
 for label, times in event_times.items():
     if len(times) == 0:
         raise ValueError(f'Label "{label}" not found among events.\n'
                          f'Valid event labels: {all_codes}')
-    else:
-        print(f'{label}: {len(times)} events found')
-        event_times_sorted[label] = sorted(times)
+    print(f'{label}: {len(times)} events found')
+    event_times_sorted[label] = sorted(times)
 
 # Extract data segments
 out_of_bounds_segs = {label: [] for label in event_times_sorted}
