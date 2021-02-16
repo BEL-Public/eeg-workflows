@@ -27,9 +27,15 @@ class Average:
         Raises
         ------
         ValueError
+            If `segments` contains arrays of differing shape
+        ValueError
             If `center` is larger than the length of the averaged data
         """
         self.category = category
+        for segment in segments:
+            if segment.shape != segments[0].shape:
+                raise ValueError('Segments have different shapes: '
+                                 f'{segment.shape} != {segments[0].shape}')
         self.segments = segments
         self.center = center
         self.sampling_rate = sr
@@ -40,8 +46,7 @@ class Average:
 
     def num_samples(self) -> int:
         """Return the duration of the averaged data in samples"""
-        data = self.data()
-        return int(data.shape[1])
+        return self.segments[0].shape[1]
 
     def num_segments(self) -> int:
         """Return number of segments going into average"""
@@ -51,49 +56,47 @@ class Average:
         """Return an array with the averaged data"""
         return np.mean(np.array(self.segments), axis=0)
 
-    def build_category_content(self, idx: int) -> List[Dict[str, object]]:
+    def build_category_content(self, begin_time: int) -> Dict[str, object]:
         """construct category content dict for the average
 
         Parameters
         ----------
-        idx
-            The position of the average in relation to other averages to be
-            written. This is used to determine the timing (begin time, end
-            time, event time) described in the category content dict.
+        begin_time
+            Start time of the averaged data segment in microseconds. Every
+            average described in `categories.xml` has to have a begin time.
+            The first average will have begin time 0. The begin time of each
+            average following will be the end time of the previous average.
 
         Returns
         -------
         The category content for the average. This can be added to a dictionary
-        with [category: category content], which can then be written out as a
+        with {category: [category content]}, which can then be written out as a
         categories.xml file.
         """
         # Times are given in microseconds
         duration = int(1e6 * self.num_samples() / self.sampling_rate)
-        begin_time = duration * idx
         end_time = begin_time + duration
         event_time = begin_time + int(1e6 * self.center / self.sampling_rate)
         num_segments = self.num_segments()
         bad_channels = self.bads
-        return [
-            {
-                'status': 'unedited',
-                'name': 'Average',
-                'beginTime': begin_time,
-                'endTime': end_time,
-                'evtBegin': event_time,
-                'evtEnd': event_time,
-                'channelStatus': [
-                    {
-                        'signalBin': 1,
-                        'exclusion': 'badChannels',
-                        'channels': bad_channels
-                    }
-                ],
-                'keys': {
-                    '#seg': {
-                        'type': 'long',
-                        'data': num_segments
-                    }
+        return {
+            'status': 'unedited',
+            'name': 'Average',
+            'beginTime': begin_time,
+            'endTime': end_time,
+            'evtBegin': event_time,
+            'evtEnd': event_time,
+            'channelStatus': [
+                {
+                    'signalBin': 1,
+                    'exclusion': 'badChannels',
+                    'channels': bad_channels
+                }
+            ],
+            'keys': {
+                '#seg': {
+                    'type': 'long',
+                    'data': num_segments
                 }
             }
-        ]
+        }

@@ -57,10 +57,14 @@ def write_averaged(averages: List[Average], outfile: str,
     W.addbin(eeg_bin)
 
     # Add category info
-    categories_content = {
-        averages[i].category: averages[i].build_category_content(i)
-        for i in range(len(averages))
-    }
+    categories_content = {}
+    begin_time = 0
+    for average in averages:
+        categories_content[average.category] = [
+            average.build_category_content(begin_time)
+        ]
+        begin_time += average.num_samples() / average.sampling_rate * 1e6
+
     W.addxml('categories', categories=categories_content)
 
     W.write()
