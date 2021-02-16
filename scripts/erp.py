@@ -125,7 +125,7 @@ for epoch in raw.epochs:
     )
 
 # Extract relative times for events of specified labels
-all_codes = []
+all_codes = set()
 event_times = {label: [] for label in opt.labels}
 for file in raw.directory.files_by_type['.xml']:
     with raw.directory.filepointer(splitext(file)[0]) as fp:
@@ -133,8 +133,7 @@ for file in raw.directory.files_by_type['.xml']:
         if xml_root.tag == '{http://www.egi.com/event_mff}eventTrack':
             events = EventTrack(xml_root).events
             for event in events:
-                if event['code'] not in all_codes:
-                    all_codes.append(event['code'])
+                all_codes.add(event['code'])
                 if event['code'] in opt.labels:
                     event_times[event['code']].append((
                         event['beginTime'] - raw.startdatetime
