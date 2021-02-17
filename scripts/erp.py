@@ -162,18 +162,17 @@ for label, times in event_times_sorted.items():
             block = data[block_idx]
         assert block['t0'] < time < block['t1']
         # Extract the segment centered on time
-        try:
-            segment = slice_block(
-                block['data'],
-                center=time - block['t0'],
-                padl=opt.left_padding,
-                padr=opt.right_padding,
-                sr=sampling_rate
-            )
-        except IndexError:
+        segment = slice_block(
+            block['data'],
+            center=time - block['t0'],
+            padl=opt.left_padding,
+            padr=opt.right_padding,
+            sr=sampling_rate
+        )
+        if segment:
+            segments[label].append(segment)
+        else:
             out_of_bounds_segs[label].append(time)
-            continue
-        segments[label].append(segment)
 
 for label in segments.keys():
     if len(segments[label]) == 0:

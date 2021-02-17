@@ -1,8 +1,10 @@
+from typing import Optional
+
 import numpy as np
 
 
-def slice_block(data_block: np.array, center: float,
-                padl: float, padr: float, sr: float) -> np.array:
+def slice_block(data_block: np.array, center: float, padl: float,
+                padr: float, sr: float) -> Optional[np.array]:
     """Return a slice of `data_block`
 
     A slice of data that is centered on `center` and extends `padl` to the left
@@ -25,7 +27,8 @@ def slice_block(data_block: np.array, center: float,
 
     Returns
     -------
-    The slice of `data_block`
+    The slice of `data_block`. If the requested slice extends beyond the
+    range of `data_block`, None is returned.
 
     Raises
     ------
@@ -45,6 +48,11 @@ def slice_block(data_block: np.array, center: float,
                          f'Got shape: {data_block.shape}')
     center_idx = int(center * sr) + 1
     left_idx = center_idx - int(padl * sr)
+    if left_idx < 0:
+        return None
     right_idx = center_idx + int(padr * sr)
     slice_indices = np.array(range(left_idx, right_idx))
-    return data_block.take(slice_indices, axis=1)
+    try:
+        return data_block.take(slice_indices, axis=1)
+    except IndexError:
+        return None
