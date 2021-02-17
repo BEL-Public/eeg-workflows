@@ -169,19 +169,19 @@ for label, times in event_times_sorted.items():
             padr=opt.right_padding,
             sr=sampling_rate
         )
-        if segment:
+        if segment is not None:
             segments[label].append(segment)
         else:
             out_of_bounds_segs[label].append(time)
 
-for label in segments.keys():
-    if len(segments[label]) == 0:
+for label, segs in segments.items():
+    if len(segs) == 0:
         raise ValueError(f'All segments for event type "{label}" '
                          'extended beyond data range')
     if len(out_of_bounds_segs[label]) > 0:
         print(f'{len(out_of_bounds_segs[label])} segment(s) extended beyond '
               f'data range for event type "{label}"')
-    print(f'{label}: {len(segments[label])} segments created')
+    print(f'{label}: {len(segs)} segments created')
 
 # Get bad channels from raw MFF
 with raw.directory.filepointer('info1') as fp:
