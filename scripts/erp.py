@@ -23,6 +23,7 @@ from mffpy.xml_files import EventTrack
 
 from eegwlib.filter import filtfilt
 from eegwlib.segment import slice_block
+from eegwlib.artifact_detection import detect_bad_channels
 from eegwlib.average import Average
 from eegwlib.write import write_averaged
 
@@ -99,8 +100,10 @@ parser.add_argument('--filter-order', type=FilterOrder, default=4,
                          'band-pass or band-stop filter.')
 parser.add_argument('--artifact-detection', type=FloatPositive,
                     help='Peak-to-peak amplitude criteria for bad segment '
-                         'rejection in μV. Bad segments will be dropped only '
-                         'if this argument is provided.')
+                         'rejection in μV. A segment will be dropped if any '
+                         'channels exceed the amplitude criteria. '
+                         'Bad segments will be dropped only if this '
+                         'argument is provided.')
 parser.add_argument('--average-ref', action='store_true',
                     help='Set average reference')
 opt = parser.parse_args()
@@ -125,6 +128,8 @@ for epoch in raw.epochs:
     )
 
 # Extract relative times for events of specified labels
+print('\nSearching input file for event labels')
+print('-------------------------------------')
 all_codes = set()
 event_times = {label: [] for label in opt.labels}
 for file in raw.directory.files_by_type['.xml']:
@@ -145,10 +150,12 @@ for label, times in event_times.items():
     if len(times) == 0:
         raise ValueError(f'Label "{label}" not found among events.\n'
                          f'Valid event labels: {all_codes}')
-    print(f'{label}: {len(times)} events found')
+    print(f'{label}: {len(times)} event(s) found')
     event_times_sorted[label] = sorted(times)
 
 # Extract data segments
+print('\nExtracting segments around event times')
+print('--------------------------------------')
 out_of_bounds_segs = {label: [] for label in event_times_sorted}
 segments = {label: [] for label in event_times_sorted}
 for label, times in event_times_sorted.items():
@@ -181,7 +188,27 @@ for label, segs in segments.items():
     if len(out_of_bounds_segs[label]) > 0:
         print(f'{len(out_of_bounds_segs[label])} segment(s) extended beyond '
               f'data range for event type "{label}"')
-    print(f'{label}: {len(segs)} segments created')
+    print(f'{label}: {len(segs)} segment(s) created')
+
+# Drop bad segments
+if opt.artifact_detection is not None:
+    print('\nDropping bad segments')
+    print('---------------------')
+    clean_segments = {}
+    for label, segs in segments.items():
+        clean_segments[label] = [
+            seg for seg in segs
+            if len(detect_bad_channels(seg, opt.artifact_detection)) == 0
+        ]
+    for label, segs in clean_segments.items():
+        if len(segs) == 0:
+            raise ValueError('All segments were dropped for event type '
+                             f'"{label}" with {opt.artifact_detection} μV '
+                             'peak-to-peak amplitude criteria')
+        print(f'{label}: {len(segments[label]) - len(segs)} segment(s) '
+              f'dropped with {opt.artifact_detection} μV peak-to-peak '
+              'amplitude criteria')
+    segments = clean_segments
 
 # Get bad channels from raw MFF
 with raw.directory.filepointer('info1') as fp:
@@ -213,4 +240,4 @@ with raw.directory.filepointer('sensorLayout') as fp:
     sensor_layout = XML.from_file(fp)
 device = sensor_layout.name
 write_averaged(averages, opt.output_file, startdatetime, device)
-print(f'Writing averaged data to {opt.output_file} ...')
+print(f'\nWriting averaged data to {opt.output_file} ...')

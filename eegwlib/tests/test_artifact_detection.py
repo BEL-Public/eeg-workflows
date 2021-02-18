@@ -13,7 +13,7 @@ from ..artifact_detection import detect_bad_channels
     (20.0, []),
     (-1.0, [0, 1, 2])
 ])
-def test_detect_bad_channels(criteria: float, bad_channels: List[int]):
+def test_detect_bad_channels(criteria: float, bad_channels: List[int]) -> None:
     """Test bad channels are returned"""
     data = np.array([[-2, 6, -1, -4, 0],
                      [9, 3, 5, 2, 1],
@@ -21,7 +21,7 @@ def test_detect_bad_channels(criteria: float, bad_channels: List[int]):
     assert detect_bad_channels(data, criteria) == bad_channels
 
 
-def test_detect_bad_channels_wrong_shape():
+def test_detect_bad_channels_wrong_shape() -> None:
     """Test error is thrown for non-2D array"""
     shape = (3, 3, 3)
     data = np.random.standard_normal(shape)

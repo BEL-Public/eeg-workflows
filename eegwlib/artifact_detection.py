@@ -11,7 +11,8 @@ def detect_bad_channels(data: np.array, criteria: float) -> List[int]:
     data
         2-dimensional array of shape (channels, samples)
     criteria
-        Peak-to-peak amplitude criteria
+        Peak-to-peak amplitude criteria. The absolute value of `criteria` is
+        used, so a negative value is accepted.
 
     Returns
     -------
