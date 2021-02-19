@@ -49,7 +49,28 @@ def test_average_class() -> None:
     assert content == expected_content
 
 
+def test_average_reference() -> None:
+    """Test setting average reference for data"""
+    data = np.array(
+        [[10, 43, 5, -5, 2],
+         [5, 2, 78, -94, 0],
+         [28, 1, 6, 3, 21],
+         [9, -2, -54, 32, 4]]
+    ).astype(np.float32)
+    data_rereferenced = np.array(
+        [[-3.0, 32.0, -3.75, 11.0, -4.75],
+         [-8.0, -9.0, 69.25, -78.0, -6.75],
+         [15.0, -10.0, -2.75, 19.0, 14.25],
+         [-4.0, -13.0, -62.75, 48.0, -2.75]]
+    ).astype(np.float32)
+    average = Average('catx', [data], 2, 1.0)
+    assert average.data == pytest.approx(data)
+    average.set_average_reference()
+    assert average.data == pytest.approx(data_rereferenced)
+
+
 def test_segments_of_different_shape_throws() -> None:
+    """Test initializing `Average` object with segments of different shape"""
     shape_1 = (32, 10)
     shape_2 = (64, 12)
     segments = [

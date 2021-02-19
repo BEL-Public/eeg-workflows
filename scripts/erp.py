@@ -234,6 +234,12 @@ averages = [
     for label, segs in segments.items()
 ]
 
+# Set average reference
+if opt.average_ref:
+    print('\nApplying an average reference to the averaged data ...')
+    for average in averages:
+        average.set_average_reference()
+
 # Write out the averaged data
 startdatetime = raw.startdatetime
 with raw.directory.filepointer('sensorLayout') as fp:

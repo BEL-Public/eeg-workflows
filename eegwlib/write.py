@@ -36,10 +36,10 @@ def write_averaged(averages: List[Average], outfile: str,
         If averages have differing sampling rates
     """
     for average in averages:
-        if average.data().shape != averages[0].data().shape:
+        if average.data.shape != averages[0].data.shape:
             raise ValueError('Averaged data blocks of different shape: '
-                             f'{average.data().shape} != '
-                             f'{averages[0].data().shape}')
+                             f'{average.data.shape} != '
+                             f'{averages[0].data.shape}')
         if average.sampling_rate != averages[0].sampling_rate:
             raise ValueError('Averages have different sampling rates: '
                              f'{average.sampling_rate} != '
@@ -53,7 +53,7 @@ def write_averaged(averages: List[Average], outfile: str,
     sampling_rate = averages[0].sampling_rate
     eeg_bin = BinWriter(sampling_rate=int(sampling_rate))
     for average in averages:
-        eeg_bin.add_block(average.data(), offset_us=0)
+        eeg_bin.add_block(average.data, offset_us=0)
     W.addbin(eeg_bin)
 
     # Add category info

@@ -37,6 +37,7 @@ class Average:
                 raise ValueError('Segments have different shapes: '
                                  f'{segment.shape} != {segments[0].shape}')
         self.segments = segments
+        self._data = self._average_segments()
         self.center = center
         self.sampling_rate = sr
         self.bads = bads
@@ -52,9 +53,18 @@ class Average:
         """Return number of segments going into average"""
         return len(self.segments)
 
-    def data(self) -> np.array:
-        """Return an array with the averaged data"""
+    def _average_segments(self) -> np.array:
+        """Return an average of the segmented data"""
         return np.mean(np.array(self.segments), axis=0)
+
+    @property
+    def data(self) -> np.array:
+        """Get averaged data"""
+        return self._data
+
+    def set_average_reference(self) -> None:
+        """Apply an average reference to the averaged data"""
+        self._data = self.data - np.mean(self.data, axis=0)
 
     def build_category_content(self, begin_time: int) -> Dict[str, object]:
         """construct category content dict for the average
