@@ -8,7 +8,7 @@ specified via the `filter-order` argument.  Segments for all
 event markers of specified labels with padding intervals `left-padding` and
 `right-padding` are extracted from the input file.  If `artifact-detection`
 argument is provided, bad segments are dropped based on the specified
-peak-to-peak amplitude criteria.  Averaging is performed per label.
+peak-to-peak amplitude criterion.  Averaging is performed per label.
 Then, the data are re-referenced to an average reference if `average-ref` flag
 is present.  These are then written to the output file path as an .mff.
 """
@@ -99,9 +99,9 @@ parser.add_argument('--filter-order', type=FilterOrder, default=4,
                          'or low-pass filter and 4x the specified value for a '
                          'band-pass or band-stop filter.')
 parser.add_argument('--artifact-detection', type=FloatPositive,
-                    help='Peak-to-peak amplitude criteria for bad segment '
+                    help='Peak-to-peak amplitude criterion for bad segment '
                          'rejection in μV. A segment will be dropped if any '
-                         'channels exceed the amplitude criteria. '
+                         'channels exceed the amplitude criterion. '
                          'Bad segments will be dropped only if this '
                          'argument is provided.')
 parser.add_argument('--average-ref', action='store_true',
@@ -204,10 +204,10 @@ if opt.artifact_detection is not None:
         if len(segs) == 0:
             raise ValueError('All segments were dropped for event type '
                              f'"{label}" with {opt.artifact_detection} μV '
-                             'peak-to-peak amplitude criteria')
+                             'peak-to-peak amplitude criterion')
         print(f'{label}: {len(segments[label]) - len(segs)} segment(s) '
               f'dropped with {opt.artifact_detection} μV peak-to-peak '
-              'amplitude criteria')
+              'amplitude criterion')
     segments = clean_segments
 
 # Get bad channels from raw MFF
