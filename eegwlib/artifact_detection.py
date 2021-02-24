@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 
 
-def detect_bad_channels(data: np.array, criterion: float) -> List[int]:
+def detect_bad_channels(data: np.ndarray, criterion: float) -> List[int]:
     """Return indices of channels that exceed peak-to-peak amplitude criterion
 
     Parameters

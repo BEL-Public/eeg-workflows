@@ -3,8 +3,8 @@ from typing import Optional
 import numpy as np
 
 
-def slice_block(data_block: np.array, center: float, padl: float,
-                padr: float, sr: float) -> Optional[np.array]:
+def slice_block(data_block: np.ndarray, center: float, padl: float,
+                padr: float, sr: float) -> Optional[np.ndarray]:
     """Return a slice of `data_block`
 
     A slice of data that is centered on `center` and extends `padl` to the left
