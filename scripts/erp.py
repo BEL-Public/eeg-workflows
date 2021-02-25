@@ -24,8 +24,7 @@ from mffpy.xml_files import EventTrack
 from eegwlib.filter import filtfilt
 from eegwlib.segment import slice_block
 from eegwlib.artifact_detection import detect_bad_channels
-from eegwlib.average import Average
-from eegwlib.write import write_averaged
+from eegwlib.average import Averages
 
 from argparse import ArgumentParser
 
@@ -228,16 +227,21 @@ else:
     bad_channels = []
 
 # Create averages for each label
-averages = [
-    Average(label, segs, center=int(opt.left_padding * sampling_rate),
-            sr=sampling_rate, bads=bad_channels)
-    for label, segs in segments.items()
-]
+averages = Averages(center=int(opt.left_padding * sampling_rate),
+                    sr=sampling_rate, bads=bad_channels)
+for label, data in segments.items():
+    averages.add(label, data)
+
+# Set average reference
+if opt.average_ref:
+    print('\nApplying an average reference to the averaged data ...')
+    averages.set_average_reference()
 
 # Write out the averaged data
 startdatetime = raw.startdatetime
 with raw.directory.filepointer('sensorLayout') as fp:
     sensor_layout = XML.from_file(fp)
 device = sensor_layout.name
-write_averaged(averages, opt.output_file, startdatetime, device)
 print(f'\nWriting averaged data to {opt.output_file} ...')
+averages.write_to_mff(opt.output_file, startdatetime=startdatetime,
+                      device=device)

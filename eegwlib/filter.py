@@ -62,9 +62,9 @@ def butter(order: int, sr: float, fmin: Optional[float] = None,
     return signal.butter(order, band, btype=btype, output='sos')
 
 
-def filtfilt(arr: np.array, order: int, sr: float,
+def filtfilt(arr: np.ndarray, order: int, sr: float,
              fmin: Optional[float] = None,
-             fmax: Optional[float] = None) -> np.array:
+             fmax: Optional[float] = None) -> np.ndarray:
     """Apply a forward-backward Butterworth filter to `arr`
 
     Parameters
