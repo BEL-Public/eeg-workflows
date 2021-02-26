@@ -8,6 +8,17 @@ processing EEG data and generating outputs. Eventually, we could transition
 this repository to BEL-Public github account where BEL Cloud users could
 view our analysis scripts and submit their own custom scripts.
 
+## QMS
+All the code in this repository is controlled by the standard operating
+procedures 0050-SOP Rev. C, 0051-SOP Rev. A, 0052-SOP Rev. A, and
+0053-SOP Rev. A.
+
+We keep a [changelog](CHANGELOG.md).
+
+### Code Style
+The code adheres to [PEP-0008](https://www.python.org/dev/peps/pep-0008/)
+with exceptions detailed in the code.
+
 ## Installation
 ```
 # Set up the conda environment
