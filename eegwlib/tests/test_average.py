@@ -1,5 +1,6 @@
 import pytest
 from collections import OrderedDict
+from copy import deepcopy
 from datetime import datetime, timezone
 from os import remove, rmdir
 from os.path import join
@@ -24,15 +25,14 @@ def empty_averages() -> Averages:
 @pytest.fixture
 def loaded_averages(empty_averages: Averages) -> Averages:
     """Return `Averages` object with averages added"""
-    averages = empty_averages
     shape = (32, 10)
     num_segments = 5
     for category in ['cat1', 'cat2', 'cat3']:
         segments = [
             np.random.standard_normal(shape).astype(np.float32)
         ] * num_segments
-        averages.add(category, segments)
-    return averages
+        empty_averages.add(category, segments)
+    return empty_averages
 
 
 @pytest.mark.parametrize('bads,result', [
@@ -94,34 +94,31 @@ def test_averages_class_init() -> None:
 
 def test_add_averages(empty_averages: Averages) -> None:
     """Test adding averages to `Averages` object"""
-    averages = empty_averages
     shape = (5, 10)
     num_segments = 3
     for category in ['cat1', 'cat2', 'cat3']:
         segments = [
             np.random.standard_normal(shape).astype(np.float32)
         ] * num_segments
-        averages.add(category, segments)
-        average = np.mean(np.array(segments), axis=0)
-        assert averages.data[category] == pytest.approx(average)
-        assert averages.num_segments[category] == num_segments
+        empty_averages.add(category, segments)
+        average_expected = np.mean(np.array(segments), axis=0)
+        assert empty_averages.data[category] == pytest.approx(average_expected)
+        assert empty_averages.num_segments[category] == num_segments
 
 
 def test_add_segments_bad_shape(empty_averages: Averages) -> None:
     """Test adding non-2D shaped segments throws ValueError"""
-    averages = empty_averages
     shape = (3, 3, 3)
     category = 'catx'
     segments = [np.random.standard_normal(shape).astype(np.float32)]
     with pytest.raises(ValueError) as exc_info:
-        averages.add(category, segments)
+        empty_averages.add(category, segments)
     message = f'Segments must be 2-dimensional. Got shape: {shape}'
     assert str(exc_info.value) == message
 
 
 def test_add_segments_of_different_shapes(empty_averages: Averages) -> None:
     """Test adding average from segments of different shapes"""
-    averages = empty_averages
     shape_1 = (5, 10)
     shape_2 = (shape_1[0] - 1, shape_1[1] - 1)
     category = 'catx'
@@ -130,20 +127,19 @@ def test_add_segments_of_different_shapes(empty_averages: Averages) -> None:
         np.random.standard_normal(shape_2).astype(np.float32)
     ]
     with pytest.raises(ValueError) as exc_info:
-        averages.add(category, segments)
+        empty_averages.add(category, segments)
     message = f'Segments have different shapes: {shape_2} != {shape_1}'
     assert str(exc_info.value) == message
 
 
 def test_add_length_smaller_than_center(empty_averages: Averages) -> None:
     """Test adding average with length smaller than center"""
-    averages = empty_averages
-    center = averages.center
+    center = empty_averages.center
     length = center - 1
     category = 'catx'
     segments = [np.random.randn(5, length).astype(np.float32)]
     with pytest.raises(ValueError) as exc_info:
-        averages.add(category, segments)
+        empty_averages.add(category, segments)
     message = f'Center ({center}) cannot be larger than length of the ' \
               f'averaged data block ({length})'
     assert str(exc_info.value) == message
@@ -151,13 +147,12 @@ def test_add_length_smaller_than_center(empty_averages: Averages) -> None:
 
 def test_add_average_of_different_shape(loaded_averages: Averages) -> None:
     """Test adding average of different shape than previously added"""
-    averages = loaded_averages
-    shape = next(iter(averages.data.values())).shape
+    shape = next(iter(loaded_averages.data.values())).shape
     different_shape = (shape[0] + 1, shape[1] + 1)
     category = 'catx'
     segments = [np.random.standard_normal(different_shape).astype(np.float32)]
     with pytest.raises(ValueError) as exc_info:
-        averages.add(category, segments)
+        loaded_averages.add(category, segments)
     message = 'Attempting to add averaged data block of different shape ' \
               f'[{different_shape}] than previously added blocks ' \
               f'[{shape}]'
@@ -166,26 +161,24 @@ def test_add_average_of_different_shape(loaded_averages: Averages) -> None:
 
 def test_set_average_reference(loaded_averages: Averages) -> None:
     """Test applying average reference to `Averages` object"""
-    averages = loaded_averages
-    averages_rereferenced = averages
-    averages_rereferenced.set_average_reference()
-    for label, signals in averages_rereferenced.data.items():
-        expected_signals = _average_reference(averages.data[label],
-                                              averages.bads)
-        assert signals == pytest.approx(expected_signals, abs=1e-6)
+    vref_data = deepcopy(loaded_averages.data)
+    loaded_averages.set_average_reference()
+    for label, signals in loaded_averages.data.items():
+        expected_signals = _average_reference(vref_data[label],
+                                              loaded_averages.bads)
+        assert signals == pytest.approx(expected_signals)
     # Make sure average reference is applied to newly added average
     category = 'catx'
-    shape = next(iter(averages_rereferenced.data.values())).shape
+    shape = next(iter(loaded_averages.data.values())).shape
     segment = np.random.standard_normal(shape).astype(np.float32)
-    averages_rereferenced.add(category, [segment])
-    expected_signals = _average_reference(segment, averages_rereferenced.bads)
-    assert averages_rereferenced.data[category] == \
-        pytest.approx(expected_signals, abs=1e-6)
+    loaded_averages.add(category, [segment])
+    expected_signals = _average_reference(segment, loaded_averages.bads)
+    assert loaded_averages.data[category] == \
+        pytest.approx(expected_signals)
 
 
 def test_build_categories_content(loaded_averages: Averages) -> None:
     """Test building categories content dict from `Averages` object"""
-    averages = loaded_averages
     expected_content = {
         'cat1': [
             {
@@ -199,7 +192,7 @@ def test_build_categories_content(loaded_averages: Averages) -> None:
                     {
                         'signalBin': 1,
                         'exclusion': 'badChannels',
-                        'channels': averages.bads
+                        'channels': loaded_averages.bads
                     }
                 ],
                 'keys': {
@@ -222,7 +215,7 @@ def test_build_categories_content(loaded_averages: Averages) -> None:
                     {
                         'signalBin': 1,
                         'exclusion': 'badChannels',
-                        'channels': averages.bads
+                        'channels': loaded_averages.bads
                     }
                 ],
                 'keys': {
@@ -245,7 +238,7 @@ def test_build_categories_content(loaded_averages: Averages) -> None:
                     {
                         'signalBin': 1,
                         'exclusion': 'badChannels',
-                        'channels': averages.bads
+                        'channels': loaded_averages.bads
                     }
                 ],
                 'keys': {
@@ -257,32 +250,31 @@ def test_build_categories_content(loaded_averages: Averages) -> None:
             }
         ]
     }
-    assert averages.build_category_content() == expected_content
+    assert loaded_averages.build_category_content() == expected_content
 
 
 def test_build_categories_content_empty(empty_averages: Averages) -> None:
     """Test building categories content fails if no averages added"""
-    averages = empty_averages
     with pytest.raises(ValueError) as exc_info:
-        averages.build_category_content()
+        empty_averages.build_category_content()
     assert str(exc_info.value) == 'No averages have been added'
 
 
 def test_write_averages_to_mff(loaded_averages: Averages) -> None:
     """Test writing `Averages` objects to MFF"""
-    averages = loaded_averages
     outfile = join('.cache', 'test_averaged.mff')
     startdatetime = datetime(1999, 12, 25, 8, 30, 10, tzinfo=timezone.utc)
     device = 'HydroCel GSN 32 1.0'
-    averages.write_to_mff(outfile, startdatetime=startdatetime, device=device)
+    loaded_averages.write_to_mff(outfile, startdatetime=startdatetime,
+                                 device=device)
     R = Reader(outfile)
-    assert R.sampling_rates['EEG'] == averages.sampling_rate
+    assert R.sampling_rates['EEG'] == loaded_averages.sampling_rate
     assert R.startdatetime == startdatetime
-    for category, expected_signals in averages.data.items():
+    for category, expected_signals in loaded_averages.data.items():
         epoch = R.epochs[category]
         signals = R.get_physical_samples_from_epoch(epoch)['EEG'][0]
         assert signals == pytest.approx(expected_signals)
-    expected_categories = averages.build_category_content()
+    expected_categories = loaded_averages.build_category_content()
     assert R.categories.categories == expected_categories
     # Clean up written files
     try:
