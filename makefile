@@ -13,7 +13,8 @@ docker-run:
 test: test-types test-linting test-units
 
 test-types:
-	mypy --ignore-missing-imports --strict eegwlib scripts
+	mypy --ignore-missing-imports --allow-untyped-decorators \
+	--strict eegwlib scripts
 
 test-linting:
 	flake8 eegwlib scripts

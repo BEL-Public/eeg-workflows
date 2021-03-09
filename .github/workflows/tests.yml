@@ -14,10 +14,10 @@ jobs:
       - name: 'Checkout current branch'
         uses: actions/checkout@v2
 
-      - name: 'Setup Python 3.6'
+      - name: 'Setup Python 3.8.8'
         uses: actions/setup-python@v2
         with:
-          python-version: '3.6'
+          python-version: '3.8.8'
 
       - name: 'Install dependencies'
         run: pip install -r requirements-dev.txt
@@ -31,10 +31,10 @@ jobs:
       - name: 'Checkout current branch'
         uses: actions/checkout@v2
 
-      - name: 'Setup Python 3.6'
+      - name: 'Setup Python 3.8.8'
         uses: actions/setup-python@v2
         with:
-          python-version: '3.6'
+          python-version: '3.8.8'
 
       - name: 'Install dependencies'
         run: pip install -r requirements-dev.txt
@@ -48,10 +48,10 @@ jobs:
       - name: 'Checkout current branch'
         uses: actions/checkout@v2
 
-      - name: 'Setup Python 3.6'
+      - name: 'Setup Python 3.8.8'
         uses: actions/setup-python@v2
         with:
-          python-version: '3.6'
+          python-version: '3.8.8'
 
       - name: 'Install dependencies'
         run: pip install -r requirements.txt -r requirements-dev.txt

@@ -19,7 +19,7 @@ with exceptions detailed in the code.
 ## Installation
 ```
 # Set up the conda environment
-$ conda create -n eegw python=3.6 pip
+$ conda create -n eegw python=3.8.8 pip
 $ conda activate eegw
 $ pip install -r requirements.txt
 # Install python scripts
