@@ -15,9 +15,10 @@ is present.  These are then written to the output file path as an .mff.
 
 from os.path import splitext, isdir, exists
 from functools import partial
-from typing import List, Union
+from typing import Dict, List, Union
 from xml.etree.ElementTree import parse
 
+import numpy as np
 from mffpy import Reader, XML
 from mffpy.xml_files import EventTrack
 
@@ -48,27 +49,27 @@ def MffType(filepath: str, should_exist: bool = True) -> str:
 def LabelStr(labels: str) -> List[str]:
     """Check that labels are valid and return as list"""
     labels = str(labels)
-    labels = labels.split(',')
-    labels = [label.strip() for label in labels if label.strip()]
-    assert len(labels) > 0, "No labels specified"
-    return labels
+    labels_list = labels.split(',')
+    labels_list = [label.strip() for label in labels_list if label.strip()]
+    assert len(labels_list) > 0, "No labels specified"
+    return labels_list
 
 
-def FloatPositive(f: Union[str, float]):
+def FloatPositive(f: Union[str, float]) -> float:
     """Check that float is not negative"""
     f = float(f)
     assert f >= 0.0, f"Negative value: {f}"
     return f
 
 
-def Frequency(freq: Union[str, float]):
+def Frequency(freq: Union[str, float]) -> float:
     """Check that frequency value positive"""
     freq = float(freq)
     assert freq > 0.0, f"Non-positive frequency: {freq}"
     return freq
 
 
-def FilterOrder(order: Union[str, int]):
+def FilterOrder(order: Union[str, int]) -> int:
     """Check that filter order is >= 1"""
     order = int(order)
     assert order >= 1, f"Filter order < 1: {order}"
@@ -130,7 +131,7 @@ for epoch in raw.epochs:
 print('\nSearching input file for event labels')
 print('-------------------------------------')
 all_codes = set()
-event_times = {label: [] for label in opt.labels}
+event_times: Dict[str, List[float]] = {label: [] for label in opt.labels}
 for file in raw.directory.files_by_type['.xml']:
     with raw.directory.filepointer(splitext(file)[0]) as fp:
         xml_root = parse(fp).getroot()
@@ -155,8 +156,12 @@ for label, times in event_times.items():
 # Extract data segments
 print('\nExtracting segments around event times')
 print('--------------------------------------')
-out_of_bounds_segs = {label: [] for label in event_times_sorted}
-segments = {label: [] for label in event_times_sorted}
+out_of_bounds_segs: Dict[str, List[float]] = {
+    label: [] for label in event_times_sorted
+}
+segments: Dict[str, List[np.ndarray]] = {
+    label: [] for label in event_times_sorted
+}
 for label, times in event_times_sorted.items():
     block_idx = 0
     block = data[block_idx]

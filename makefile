@@ -10,7 +10,14 @@ docker-run:
 		   ${REGISTRY}/eegworkflow:${TAG} \
 		   sws-pilot-workflow.py -h
 
-test:
-	flake8 eegwlib
-	mypy --ignore-missing-imports --strict eegwlib
+test: test-types test-linting test-units
+
+test-types:
+	mypy --ignore-missing-imports --allow-untyped-decorators \
+	--strict eegwlib scripts
+
+test-linting:
+	flake8 eegwlib scripts
+
+test-units:
 	pytest --cov
