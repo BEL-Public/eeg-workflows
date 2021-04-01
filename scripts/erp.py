@@ -106,11 +106,20 @@ parser.add_argument('--artifact-detection', type=FloatPositive,
                          'argument is provided.')
 parser.add_argument('--average-ref', action='store_true',
                     help='Set average reference')
+parser.add_argument('--verbose', '-v', action='store_true',
+                    help='Print settings and results for each step')
 opt = parser.parse_args()
 
 # Read raw input file
 raw = Reader(opt.input_file)
 sampling_rate = raw.sampling_rates['EEG']
+
+# Get history info if present
+if 'history.xml' in raw.directory.listdir():
+    with raw.directory.filepointer('history') as fp:
+        history = XML.from_file(fp).entries
+else:
+    history = []
 
 # Get raw signal blocks and apply filter if specified
 data = []
@@ -127,9 +136,19 @@ for epoch in raw.epochs:
         }
     )
 
+for filt, freq in {'Highpass': opt.highpass, 'Lowpass': opt.lowpass}.items():
+    if freq:
+        filter_entry = dict(
+            method='Filtering',
+            settings=[f'Filter Setting: {freq} Hz {filt}',
+                      'Filter Type: IIR Butterworth',
+                      f'Filter Order: {opt.filter_order}']
+        )
+        if opt.verbose:
+            print(filter_entry)
+        history.append(filter_entry)
+
 # Extract relative times for events of specified labels
-print('\nSearching input file for event labels')
-print('-------------------------------------')
 all_codes = set()
 event_times: Dict[str, List[float]] = {label: [] for label in opt.labels}
 for file in raw.directory.files_by_type['.xml']:
@@ -150,12 +169,9 @@ for label, times in event_times.items():
     if len(times) == 0:
         raise ValueError(f'Label "{label}" not found among events.\n'
                          f'Valid event labels: {all_codes}')
-    print(f'{label}: {len(times)} event(s) found')
     event_times_sorted[label] = sorted(times)
 
 # Extract data segments
-print('\nExtracting segments around event times')
-print('--------------------------------------')
 out_of_bounds_segs: Dict[str, List[float]] = {
     label: [] for label in event_times_sorted
 }
@@ -185,34 +201,74 @@ for label, times in event_times_sorted.items():
         else:
             out_of_bounds_segs[label].append(time)
 
+# Check if any categories have no segments
 for label, segs in segments.items():
     if len(segs) == 0:
         raise ValueError(f'All segments for event type "{label}" '
                          'extended beyond data range')
-    if len(out_of_bounds_segs[label]) > 0:
-        print(f'{len(out_of_bounds_segs[label])} segment(s) extended beyond '
-              f'data range for event type "{label}"')
-    print(f'{label}: {len(segs)} segment(s) created')
+
+segmentation_settings = []
+segmentation_results = [f'Segmented to {len(segments)} categories and '
+                        f'{sum(map(len, segments.values()))} segments']
+for category, segs in segments.items():
+    segmentation_settings += [
+        f'Rules for category "{category}"',
+        f'    Milliseconds Before: {opt.left_padding * 1000}',
+        f'    Milliseconds After: {opt.right_padding * 1000}',
+        '    Milliseconds Offset: 0',
+        '    Event 1:',
+        f'        Code is "{category}"'
+    ]
+    segmentation_results += [
+        f'Results for category "{category}"',
+        f'    {len(segs)} segment(s) created',
+    ]
+    if len(out_of_bounds_segs[category]) > 0:
+        segmentation_results.append(
+            f'    {len(out_of_bounds_segs[category])} segment(s) could'
+            'not be created because they extended beyond data range'
+        )
+segmentation_entry = dict(
+    method='Segmentation',
+    settings=segmentation_settings,
+    results=segmentation_results
+)
+if opt.verbose:
+    print(segmentation_entry)
+history.append(segmentation_entry)
 
 # Drop bad segments
 if opt.artifact_detection is not None:
-    print('\nDropping bad segments')
-    print('---------------------')
     clean_segments = {}
     for label, segs in segments.items():
         clean_segments[label] = [
             seg for seg in segs
             if len(detect_bad_channels(seg, opt.artifact_detection)) == 0
         ]
+    artifact_results = []
     for label, segs in clean_segments.items():
         if len(segs) == 0:
             raise ValueError('All segments were dropped for event type '
                              f'"{label}" with {opt.artifact_detection} μV '
                              'peak-to-peak amplitude criterion')
-        print(f'{label}: {len(segments[label]) - len(segs)} segment(s) '
-              f'dropped with {opt.artifact_detection} μV peak-to-peak '
-              'amplitude criterion')
+        artifact_results += [
+            f'Results for category "{label}"',
+            f'    {len(segments[label]) - len(segs)} out of '
+            f'{len(segments[label])} segments dropped'
+        ]
     segments = clean_segments
+
+    artifact_entry = dict(
+        method='Artifact Detection',
+        settings=[
+            f'Bad Channel Threshold: Max - Min > {opt.artifact_detection} μV',
+            'Mark segment bad if it contains any bad channels'
+        ],
+        results=artifact_results
+    )
+    if opt.verbose:
+        print(artifact_entry)
+    history.append(artifact_entry)
 
 # Get bad channels from raw MFF
 with raw.directory.filepointer('info1') as fp:
@@ -225,7 +281,6 @@ if channel_info is not None and \
         channel_info.attrib['exclusion'] == 'badChannels':
     if channel_info.text:
         bad_channels = [int(ch) for ch in channel_info.text.split(' ')]
-        print(f'Bad channels: {bad_channels}')
     else:
         bad_channels = []
 else:
@@ -237,10 +292,31 @@ averages = Averages(center=int(opt.left_padding * sampling_rate),
 for label, data in segments.items():
     averages.add(label, data)
 
+average_results = [
+    f'{nsegs} segments averaged for category "{category}"'
+    for category, nsegs in averages.num_segments.items()
+]
+average_entry = dict(
+    method='Averaging',
+    settings=['Handle source files separately',
+              'Subjects are not averaged together'],
+    results=average_results
+)
+if opt.verbose:
+    print(average_entry)
+history.append(average_entry)
+
 # Set average reference
 if opt.average_ref:
-    print('\nApplying an average reference to the averaged data ...')
     averages.set_average_reference()
+
+    reference_entry = dict(
+        method='Montage Operations Tool',
+        settings=['Average Reference']
+    )
+    if opt.verbose:
+        print(reference_entry)
+    history.append(reference_entry)
 
 # Write out the averaged data
 startdatetime = raw.startdatetime
@@ -249,4 +325,4 @@ with raw.directory.filepointer('sensorLayout') as fp:
 device = sensor_layout.name
 print(f'\nWriting averaged data to {opt.output_file} ...')
 averages.write_to_mff(opt.output_file, startdatetime=startdatetime,
-                      device=device)
+                      device=device, history=history)

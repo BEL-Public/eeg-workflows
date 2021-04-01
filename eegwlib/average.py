@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional, Sequence
 from collections import OrderedDict
 from datetime import datetime
 
@@ -192,8 +192,9 @@ class Averages:
 
         return content
 
-    def write_to_mff(self, outfile: str, startdatetime: datetime,
-                     device: str) -> None:
+    def write_to_mff(self, outfile: str, startdatetime: datetime, device: str,
+                     history: Optional[List[Dict[str, Sequence[str]]]] = None
+                     ) -> None:
         """Write the averaged data to MFF
 
         Parameters
@@ -206,6 +207,9 @@ class Averages:
         device
             Recording device for the raw MFF from which the averages were
             generated
+        history
+            Content to be written to `history.xml` file. See method
+            `mffpy.xml_files.History.content` for proper format
         """
         W = Writer(outfile)
         W.addxml('fileInfo', recordTime=startdatetime)
@@ -215,4 +219,6 @@ class Averages:
             eeg_bin.add_block(average, offset_us=0)
         W.addbin(eeg_bin)
         W.addxml('categories', categories=self.build_category_content())
+        if history:
+            W.addxml('historyEntries', entries=history)
         W.write()
