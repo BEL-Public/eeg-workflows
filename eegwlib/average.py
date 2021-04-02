@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional
 from collections import OrderedDict
 from datetime import datetime
 
@@ -193,7 +193,7 @@ class Averages:
         return content
 
     def write_to_mff(self, outfile: str, startdatetime: datetime, device: str,
-                     history: Optional[List[Dict[str, Sequence[str]]]] = None
+                     history: Optional[List[Dict[str, object]]] = None
                      ) -> None:
         """Write the averaged data to MFF
 

@@ -267,12 +267,20 @@ def test_write_averages_to_mff(loaded_averages: Averages) -> None:
     device = 'HydroCel GSN 32 1.0'
     history = [
         {
+            'name': 'ERP Workflow Segmentation',
             'method': 'Segmentation',
+            'beginTime': datetime.now(timezone.utc),
+            'endTime': datetime.now(timezone.utc),
+            'sourceFiles': ['test.mff'],
             'settings': ['Setting 1', 'Setting 2'],
             'results': ['Result 1', 'Result 2']
         },
         {
+            'name': 'ERP Workflow Averaging',
             'method': 'Averaging',
+            'beginTime': datetime.now(timezone.utc),
+            'endTime': datetime.now(timezone.utc),
+            'sourceFiles': ['test.mff'],
             'settings': ['Setting 1', 'Setting 2'],
             'results': ['Result 1', 'Result 2']
         }

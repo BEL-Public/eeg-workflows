@@ -13,6 +13,8 @@ Then, the data are re-referenced to an average reference if `average-ref` flag
 is present.  These are then written to the output file path as an .mff.
 """
 
+from datetime import datetime
+from dateutil.tz import tzlocal
 from os.path import splitext, isdir, exists
 from functools import partial
 from typing import Dict, List, Union
@@ -122,6 +124,7 @@ else:
     history = []
 
 # Get raw signal blocks and apply filter if specified
+filter_start = datetime.now(tzlocal())
 data = []
 for epoch in raw.epochs:
     signals = raw.get_physical_samples_from_epoch(epoch)['EEG'][0]
@@ -139,7 +142,12 @@ for epoch in raw.epochs:
 for filt, freq in {'Highpass': opt.highpass, 'Lowpass': opt.lowpass}.items():
     if freq:
         filter_entry = dict(
+            name=f'ERP Workflow {filt} Filter',
+            kind='Transformation',
             method='Filtering',
+            beginTime=filter_start,
+            endTime=datetime.now(tzlocal()),
+            sourceFiles=[opt.input_file],
             settings=[f'Filter Setting: {freq} Hz {filt}',
                       'Filter Type: IIR Butterworth',
                       f'Filter Order: {opt.filter_order}']
@@ -172,6 +180,7 @@ for label, times in event_times.items():
     event_times_sorted[label] = sorted(times)
 
 # Extract data segments
+segment_start = datetime.now(tzlocal())
 out_of_bounds_segs: Dict[str, List[float]] = {
     label: [] for label in event_times_sorted
 }
@@ -229,7 +238,11 @@ for category, segs in segments.items():
             'not be created because they extended beyond data range'
         )
 segmentation_entry = dict(
+    name='ERP Workflow Segmentation',
     method='Segmentation',
+    beginTime=segment_start,
+    endTime=datetime.now(tzlocal()),
+    sourceFiles=[opt.input_file],
     settings=segmentation_settings,
     results=segmentation_results
 )
@@ -239,6 +252,7 @@ history.append(segmentation_entry)
 
 # Drop bad segments
 if opt.artifact_detection is not None:
+    artifact_start = datetime.now(tzlocal())
     clean_segments = {}
     for label, segs in segments.items():
         clean_segments[label] = [
@@ -259,7 +273,11 @@ if opt.artifact_detection is not None:
     segments = clean_segments
 
     artifact_entry = dict(
+        name='ERP Workflow Artifact Detection',
         method='Artifact Detection',
+        beginTime=artifact_start,
+        endTime=datetime.now(tzlocal()),
+        sourceFiles=[opt.input_file],
         settings=[
             f'Bad Channel Threshold: Max - Min > {opt.artifact_detection} μV',
             'Mark segment bad if it contains any bad channels'
@@ -287,6 +305,7 @@ else:
     bad_channels = []
 
 # Create averages for each label
+average_start = datetime.now(tzlocal())
 averages = Averages(center=int(opt.left_padding * sampling_rate),
                     sr=sampling_rate, bads=bad_channels)
 for label, data in segments.items():
@@ -297,7 +316,11 @@ average_results = [
     for category, nsegs in averages.num_segments.items()
 ]
 average_entry = dict(
+    name='ERP Workflow Averaging',
     method='Averaging',
+    beginTime=average_start,
+    endTime=datetime.now(tzlocal()),
+    sourceFiles=[opt.input_file],
     settings=['Handle source files separately',
               'Subjects are not averaged together'],
     results=average_results
@@ -308,10 +331,15 @@ history.append(average_entry)
 
 # Set average reference
 if opt.average_ref:
+    average_ref_start = datetime.now(tzlocal())
     averages.set_average_reference()
 
     reference_entry = dict(
+        name='ERP Workflow Average Reference',
         method='Montage Operations Tool',
+        beginTime=average_ref_start,
+        endTime=datetime.now(tzlocal()),
+        sourceFiles=[opt.input_file],
         settings=['Average Reference']
     )
     if opt.verbose:
