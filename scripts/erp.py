@@ -14,12 +14,12 @@ is present.  These are then written to the output file path as an .mff.
 """
 
 from datetime import datetime
-from dateutil.tz import tzlocal
 from os.path import splitext, isdir, exists
 from functools import partial
 from typing import Dict, List, Union
 from xml.etree.ElementTree import parse
 
+from dateutil.tz import tzlocal
 import numpy as np
 from mffpy import Reader, XML
 from mffpy.xml_files import EventTrack
