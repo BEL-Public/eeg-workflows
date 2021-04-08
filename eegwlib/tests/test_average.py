@@ -8,6 +8,7 @@ from typing import List
 
 import numpy as np
 from mffpy import Reader, XML
+import pytz
 
 from ..average import _average_reference, Averages
 
@@ -269,8 +270,8 @@ def test_write_averages_to_mff(loaded_averages: Averages) -> None:
         {
             'name': 'ERP Workflow Segmentation',
             'method': 'Segmentation',
-            'beginTime': datetime.now(timezone.utc),
-            'endTime': datetime.now(timezone.utc),
+            'beginTime': pytz.utc.localize(datetime.utcnow()),
+            'endTime': pytz.utc.localize(datetime.utcnow()),
             'sourceFiles': ['test.mff'],
             'settings': ['Setting 1', 'Setting 2'],
             'results': ['Result 1', 'Result 2']
@@ -278,8 +279,8 @@ def test_write_averages_to_mff(loaded_averages: Averages) -> None:
         {
             'name': 'ERP Workflow Averaging',
             'method': 'Averaging',
-            'beginTime': datetime.now(timezone.utc),
-            'endTime': datetime.now(timezone.utc),
+            'beginTime': pytz.utc.localize(datetime.utcnow()),
+            'endTime': pytz.utc.localize(datetime.utcnow()),
             'sourceFiles': ['test.mff'],
             'settings': ['Setting 1', 'Setting 2'],
             'results': ['Result 1', 'Result 2']

@@ -19,10 +19,10 @@ from functools import partial
 from typing import Dict, List, Union
 from xml.etree.ElementTree import parse
 
-from dateutil.tz import tzlocal
 import numpy as np
 from mffpy import Reader, XML
 from mffpy.xml_files import EventTrack
+import pytz
 
 from eegwlib.filter import filtfilt
 from eegwlib.segment import slice_block
@@ -78,6 +78,13 @@ def FilterOrder(order: Union[str, int]) -> int:
     return order
 
 
+def TimeZone(tzstr: str) -> pytz.BaseTzInfo:
+    """Convert timezone string to timezone"""
+    assert tzstr in pytz.all_timezones, f'Unknown timezone "{tzstr}". ' \
+                                        f'Options: {pytz.all_timezones}'
+    return pytz.timezone(tzstr)
+
+
 parser = ArgumentParser(description=__doc__)
 parser.add_argument('input_file', type=MffType,
                     help='Path to input .mff file')
@@ -108,6 +115,10 @@ parser.add_argument('--artifact-detection', type=FloatPositive,
                          'argument is provided.')
 parser.add_argument('--average-ref', action='store_true',
                     help='Set average reference')
+parser.add_argument('--timezone', type=TimeZone, default='UTC',
+                    help='Timezone specification for start/end time '
+                         'of each processing step. Must be one of '
+                         '`pytz.all_timezones` (default="UTC").')
 parser.add_argument('--verbose', '-v', action='store_true',
                     help='Print settings and results for each step')
 opt = parser.parse_args()
@@ -124,7 +135,7 @@ else:
     history = []
 
 # Get raw signal blocks and apply filter if specified
-filter_start = datetime.now(tzlocal())
+filter_start = pytz.utc.localize(datetime.utcnow())
 data = []
 for epoch in raw.epochs:
     signals = raw.get_physical_samples_from_epoch(epoch)['EEG'][0]
@@ -138,6 +149,7 @@ for epoch in raw.epochs:
             'data': filtered_signals
         }
     )
+filter_end = pytz.utc.localize(datetime.utcnow())
 
 for filt, freq in {'Highpass': opt.highpass, 'Lowpass': opt.lowpass}.items():
     if freq:
@@ -145,8 +157,8 @@ for filt, freq in {'Highpass': opt.highpass, 'Lowpass': opt.lowpass}.items():
             name=f'ERP Workflow {filt} Filter',
             kind='Transformation',
             method='Filtering',
-            beginTime=filter_start,
-            endTime=datetime.now(tzlocal()),
+            beginTime=filter_start.astimezone(opt.timezone),
+            endTime=filter_end.astimezone(opt.timezone),
             sourceFiles=[opt.input_file],
             settings=[f'Filter Setting: {freq} Hz {filt}',
                       'Filter Type: IIR Butterworth',
@@ -180,7 +192,7 @@ for label, times in event_times.items():
     event_times_sorted[label] = sorted(times)
 
 # Extract data segments
-segment_start = datetime.now(tzlocal())
+segment_start = pytz.utc.localize(datetime.utcnow())
 out_of_bounds_segs: Dict[str, List[float]] = {
     label: [] for label in event_times_sorted
 }
@@ -209,6 +221,7 @@ for label, times in event_times_sorted.items():
             segments[label].append(segment)
         else:
             out_of_bounds_segs[label].append(time)
+segment_end = pytz.utc.localize(datetime.utcnow())
 
 # Check if any categories have no segments
 for label, segs in segments.items():
@@ -240,8 +253,8 @@ for category, segs in segments.items():
 segmentation_entry = dict(
     name='ERP Workflow Segmentation',
     method='Segmentation',
-    beginTime=segment_start,
-    endTime=datetime.now(tzlocal()),
+    beginTime=segment_start.astimezone(opt.timezone),
+    endTime=segment_end.astimezone(opt.timezone),
     sourceFiles=[opt.input_file],
     settings=segmentation_settings,
     results=segmentation_results
@@ -252,7 +265,7 @@ history.append(segmentation_entry)
 
 # Drop bad segments
 if opt.artifact_detection is not None:
-    artifact_start = datetime.now(tzlocal())
+    artifact_start = pytz.utc.localize(datetime.utcnow())
     clean_segments = {}
     for label, segs in segments.items():
         clean_segments[label] = [
@@ -271,12 +284,13 @@ if opt.artifact_detection is not None:
             f'{len(segments[label])} segments dropped'
         ]
     segments = clean_segments
+    artifact_end = pytz.utc.localize(datetime.utcnow())
 
     artifact_entry = dict(
         name='ERP Workflow Artifact Detection',
         method='Artifact Detection',
-        beginTime=artifact_start,
-        endTime=datetime.now(tzlocal()),
+        beginTime=artifact_start.astimezone(opt.timezone),
+        endTime=artifact_end.astimezone(opt.timezone),
         sourceFiles=[opt.input_file],
         settings=[
             f'Bad Channel Threshold: Max - Min > {opt.artifact_detection} μV',
@@ -305,11 +319,12 @@ else:
     bad_channels = []
 
 # Create averages for each label
-average_start = datetime.now(tzlocal())
+average_start = pytz.utc.localize(datetime.utcnow())
 averages = Averages(center=int(opt.left_padding * sampling_rate),
                     sr=sampling_rate, bads=bad_channels)
 for label, data in segments.items():
     averages.add(label, data)
+average_end = pytz.utc.localize(datetime.utcnow())
 
 average_results = [
     f'{nsegs} segments averaged for category "{category}"'
@@ -318,8 +333,8 @@ average_results = [
 average_entry = dict(
     name='ERP Workflow Averaging',
     method='Averaging',
-    beginTime=average_start,
-    endTime=datetime.now(tzlocal()),
+    beginTime=average_start.astimezone(opt.timezone),
+    endTime=average_end.astimezone(opt.timezone),
     sourceFiles=[opt.input_file],
     settings=['Handle source files separately',
               'Subjects are not averaged together'],
@@ -331,14 +346,15 @@ history.append(average_entry)
 
 # Set average reference
 if opt.average_ref:
-    average_ref_start = datetime.now(tzlocal())
+    average_ref_start = pytz.utc.localize(datetime.utcnow())
     averages.set_average_reference()
+    average_ref_end = pytz.utc.localize(datetime.utcnow())
 
     reference_entry = dict(
         name='ERP Workflow Average Reference',
         method='Montage Operations Tool',
-        beginTime=average_ref_start,
-        endTime=datetime.now(tzlocal()),
+        beginTime=average_ref_start.astimezone(opt.timezone),
+        endTime=average_ref_end.astimezone(opt.timezone),
         sourceFiles=[opt.input_file],
         settings=['Average Reference']
     )
