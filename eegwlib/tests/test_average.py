@@ -7,7 +7,8 @@ from os.path import join
 from typing import List
 
 import numpy as np
-from mffpy import Reader
+from mffpy import Reader, XML
+import pytz
 
 from ..average import _average_reference, Averages
 
@@ -265,8 +266,28 @@ def test_write_averages_to_mff(loaded_averages: Averages) -> None:
     outfile = join('.cache', 'test_averaged.mff')
     startdatetime = datetime(1999, 12, 25, 8, 30, 10, tzinfo=timezone.utc)
     device = 'HydroCel GSN 32 1.0'
+    history = [
+        {
+            'name': 'ERP Workflow Segmentation',
+            'method': 'Segmentation',
+            'beginTime': pytz.utc.localize(datetime.utcnow()),
+            'endTime': pytz.utc.localize(datetime.utcnow()),
+            'sourceFiles': ['test.mff'],
+            'settings': ['Setting 1', 'Setting 2'],
+            'results': ['Result 1', 'Result 2']
+        },
+        {
+            'name': 'ERP Workflow Averaging',
+            'method': 'Averaging',
+            'beginTime': pytz.utc.localize(datetime.utcnow()),
+            'endTime': pytz.utc.localize(datetime.utcnow()),
+            'sourceFiles': ['test.mff'],
+            'settings': ['Setting 1', 'Setting 2'],
+            'results': ['Result 1', 'Result 2']
+        }
+    ]
     loaded_averages.write_to_mff(outfile, startdatetime=startdatetime,
-                                 device=device)
+                                 device=device, history=history)
     R = Reader(outfile)
     assert R.sampling_rates['EEG'] == loaded_averages.sampling_rate
     assert R.startdatetime == startdatetime
@@ -276,6 +297,8 @@ def test_write_averages_to_mff(loaded_averages: Averages) -> None:
         assert signals == pytest.approx(expected_signals)
     expected_categories = loaded_averages.build_category_content()
     assert R.categories.categories == expected_categories
+    with R.directory.filepointer('history') as fp:
+        assert XML.from_file(fp).entries == history
     # Clean up written files
     try:
         for file in R.directory.listdir():
