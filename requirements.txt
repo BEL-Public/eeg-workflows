@@ -1,4 +1,5 @@
 mne==0.21
 numpy==1.19.2
+pytz==2020.1
 scipy==1.5.2
 mffpy==0.5.8
