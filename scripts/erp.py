@@ -274,22 +274,21 @@ history.append(segmentation_entry)
 # Drop bad segments
 if opt.artifact_detection is not None:
     artifact_start = pytz.utc.localize(datetime.utcnow())
-    clean_segments = {}
+    clean_segments = defaultdict(list)
     for cat, segs in segments.items():
-        clean_segments[cat] = [
-            seg for seg in segs
-            if len(detect_bad_channels(seg, opt.artifact_detection)) == 0
-        ]
+        for seg in segs:
+            if len(detect_bad_channels(seg, opt.artifact_detection)) == 0:
+                clean_segments[cat].append(seg)
     artifact_results = []
-    for cat, segs in clean_segments.items():
-        if len(segs) == 0:
+    for cat, segs in segments.items():
+        if cat not in clean_segments:
             raise ValueError('All segments were dropped for category '
                              f'"{cat}" with {opt.artifact_detection} μV '
                              'peak-to-peak amplitude criterion')
         artifact_results += [
             f'Results for category "{cat}"',
-            f'    {len(segments[cat]) - len(segs)} out of '
-            f'{len(segments[cat])} segments dropped'
+            f'    {len(segs) - len(clean_segments[cat])} out of '
+            f'{len(segs)} segments dropped'
         ]
     segments = clean_segments
     artifact_end = pytz.utc.localize(datetime.utcnow())
