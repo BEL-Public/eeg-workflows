@@ -13,13 +13,13 @@ Then, the data are re-referenced to an average reference if `average-ref` flag
 is present.  These are then written to the output file path as an .mff.
 """
 
+from collections import defaultdict
 from datetime import datetime
 from os.path import splitext, isdir, exists
 from functools import partial
-from typing import Dict, List, Union
+from typing import List, Union
 from xml.etree.ElementTree import parse
 
-import numpy as np
 from mffpy import Reader, XML
 from mffpy.xml_files import EventTrack
 import pytz
@@ -92,6 +92,11 @@ parser.add_argument('output_file', type=partial(MffType, should_exist=False),
                     help='Path to output .mff file')
 parser.add_argument('--labels', '-l', type=LabelStr, required=True,
                     help='Comma-separated list of event labels')
+parser.add_argument('--categories', type=LabelStr,
+                    help='Comma-separated list of category names associated '
+                         'with each event label. If category names are not '
+                         'provided, the event labels will be used as '
+                         'category names.')
 parser.add_argument('--left-padding', type=FloatPositive, default=1.0,
                     help='Padding prior to event in sec. (default=1.0)')
 parser.add_argument('--right-padding', type=FloatPositive, default=1.0,
@@ -122,6 +127,13 @@ parser.add_argument('--timezone', type=TimeZone, default='UTC',
 parser.add_argument('--verbose', '-v', action='store_true',
                     help='Print settings and results for each step')
 opt = parser.parse_args()
+
+# Associate category names with event labels
+category_names = opt.categories or opt.labels
+if len(opt.labels) != len(category_names):
+    raise ValueError(f'Number of event labels {opt.labels} does not '
+                     f'equal number of categories {category_names}')
+categories = dict(zip(category_names, opt.labels))
 
 # Read raw input file
 raw = Reader(opt.input_file)
@@ -170,7 +182,7 @@ for filt, freq in {'Highpass': opt.highpass, 'Lowpass': opt.lowpass}.items():
 
 # Extract relative times for events of specified labels
 all_codes = set()
-event_times: Dict[str, List[float]] = {label: [] for label in opt.labels}
+event_times = defaultdict(list)
 for file in raw.directory.files_by_type['.xml']:
     with raw.directory.filepointer(splitext(file)[0]) as fp:
         xml_root = parse(fp).getroot()
@@ -184,22 +196,18 @@ for file in raw.directory.files_by_type['.xml']:
                     event['beginTime'] - raw.startdatetime
                 ).total_seconds())
 
-event_times_sorted = {}
-for label, times in event_times.items():
-    if len(times) == 0:
+times_by_category = {}
+for cat, label in categories.items():
+    if label not in event_times:
         raise ValueError(f'Label "{label}" not found among events.\n'
                          f'Valid event labels: {all_codes}')
-    event_times_sorted[label] = sorted(times)
+    times_by_category[cat] = sorted(event_times[label])
 
 # Extract data segments
 segment_start = pytz.utc.localize(datetime.utcnow())
-out_of_bounds_segs: Dict[str, List[float]] = {
-    label: [] for label in event_times_sorted
-}
-segments: Dict[str, List[np.ndarray]] = {
-    label: [] for label in event_times_sorted
-}
-for label, times in event_times_sorted.items():
+out_of_bounds_segs = defaultdict(list)
+segments = defaultdict(list)
+for cat, times in times_by_category.items():
     block_idx = 0
     block = data[block_idx]
     for time in times:
@@ -218,15 +226,15 @@ for label, times in event_times_sorted.items():
             sr=sampling_rate
         )
         if segment is not None:
-            segments[label].append(segment)
+            segments[cat].append(segment)
         else:
-            out_of_bounds_segs[label].append(time)
+            out_of_bounds_segs[cat].append(time)
 segment_end = pytz.utc.localize(datetime.utcnow())
 
 # Check if any categories have no segments
-for label, segs in segments.items():
-    if len(segs) == 0:
-        raise ValueError(f'All segments for event type "{label}" '
+for cat in categories:
+    if cat not in segments:
+        raise ValueError(f'All segments for category "{cat}" '
                          'extended beyond data range')
 
 segmentation_settings = []
@@ -239,15 +247,15 @@ for category, segs in segments.items():
         f'    Milliseconds After: {opt.right_padding * 1000}',
         '    Milliseconds Offset: 0',
         '    Event 1:',
-        f'        Code is "{category}"'
+        f'        Code is "{categories[category]}"'
     ]
     segmentation_results += [
         f'Results for category "{category}"',
         f'    {len(segs)} segment(s) created',
     ]
-    if len(out_of_bounds_segs[category]) > 0:
+    if category in out_of_bounds_segs:
         segmentation_results.append(
-            f'    {len(out_of_bounds_segs[category])} segment(s) could'
+            f'    {len(out_of_bounds_segs[category])} segment(s) could '
             'not be created because they extended beyond data range'
         )
 segmentation_entry = dict(
@@ -266,22 +274,21 @@ history.append(segmentation_entry)
 # Drop bad segments
 if opt.artifact_detection is not None:
     artifact_start = pytz.utc.localize(datetime.utcnow())
-    clean_segments = {}
-    for label, segs in segments.items():
-        clean_segments[label] = [
-            seg for seg in segs
-            if len(detect_bad_channels(seg, opt.artifact_detection)) == 0
-        ]
+    clean_segments = defaultdict(list)
+    for cat, segs in segments.items():
+        for seg in segs:
+            if len(detect_bad_channels(seg, opt.artifact_detection)) == 0:
+                clean_segments[cat].append(seg)
     artifact_results = []
-    for label, segs in clean_segments.items():
-        if len(segs) == 0:
-            raise ValueError('All segments were dropped for event type '
-                             f'"{label}" with {opt.artifact_detection} μV '
+    for cat, segs in segments.items():
+        if cat not in clean_segments:
+            raise ValueError('All segments were dropped for category '
+                             f'"{cat}" with {opt.artifact_detection} μV '
                              'peak-to-peak amplitude criterion')
         artifact_results += [
-            f'Results for category "{label}"',
-            f'    {len(segments[label]) - len(segs)} out of '
-            f'{len(segments[label])} segments dropped'
+            f'Results for category "{cat}"',
+            f'    {len(segs) - len(clean_segments[cat])} out of '
+            f'{len(segs)} segments dropped'
         ]
     segments = clean_segments
     artifact_end = pytz.utc.localize(datetime.utcnow())
@@ -322,8 +329,8 @@ else:
 average_start = pytz.utc.localize(datetime.utcnow())
 averages = Averages(center=int(opt.left_padding * sampling_rate),
                     sr=sampling_rate, bads=bad_channels)
-for label, data in segments.items():
-    averages.add(label, data)
+for cat, data in segments.items():
+    averages.add(cat, data)
 average_end = pytz.utc.localize(datetime.utcnow())
 
 average_results = [
