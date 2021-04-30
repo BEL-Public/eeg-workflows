@@ -1,24 +1,30 @@
-from typing import Optional, Union
+from typing import Optional
 
 import pytest
 import numpy as np
-from scipy import signal
 
 from ..filter import butter, filtfilt
 
 
-@pytest.mark.parametrize('fmin,fmax,band,btype', [
-    (1.0, 40.0, np.array([0.015625, 0.625], dtype=np.float32), 'bandpass'),
-    (40.0, 1.0, np.array([0.625, 0.015625], dtype=np.float32), 'bandstop'),
-    (1.0, None, 0.015625, 'highpass'),
-    (None, 40.0, 0.625, 'lowpass'),
+@pytest.mark.parametrize('fmin,fmax,sos_expected', [
+    (1.0, 40.0, np.array(
+        [[0.014737, 0.0, -0.014737, 1.0, -1.97050281, 0.970526]]
+    )),
+    (40.0, 1.0, np.array(
+        [[1.01518455, -2.03034521, 1.01518455, 1.0, -2.03034521, 1.0303691]]
+    )),
+    (1.0, None, np.array(
+        [[0.99961665, -0.99961665, 0.0, 1.0, -0.9992333, 0.0]]
+    )),
+    (None, 40.0, np.array(
+        [[0.01510922, 0.01510922, 0.0, 1.0, -0.96978156, 0.0]]
+    )),
 ])
 def test_butter(fmin: Optional[float], fmax: Optional[float],
-                band: Union[np.array, float], btype: str) -> None:
+                sos_expected: np.ndarray) -> None:
     """Test Butterworth filter design with the 4 filter varieties"""
-    expected_coefs = signal.butter(4, band, btype=btype, output='sos')
-    coefs = butter(4, 128.0, fmin, fmax)
-    assert coefs == pytest.approx(expected_coefs)
+    sos = butter(1, 128.0, fmin=fmin, fmax=fmax)
+    assert sos == pytest.approx(sos_expected)
 
 
 @pytest.mark.parametrize('fmin,fmax,message', [
@@ -39,15 +45,14 @@ def test_filtfilt() -> None:
         4.3, 2.5, 1.0, 5.9, 3.0, 1.3, 4.5, 9.4,
         2.1, 4.3, 3.6, 2.3, 1.8, 4.5, 2.7, 0.3
     ]], dtype=np.float32)
-    expected_signals = np.array([[
-        3.4575894, 3.241897, 3.1787324, 3.299958, 3.580789, 3.942394,
-        4.274485, 4.4716654, 4.469146, 4.2595544, 3.8825028, 3.396784,
-        2.8549209, 2.2941477, 1.7434243, 1.234144
-    ]], dtype=np.float32)
-    filtered_signals = filtfilt(input_signals, 4, 10.0, fmax=1.0)
+    expected_signals = np.array(
+        [[3.6802871, 3.604227, 3.5445273, 3.4998417, 3.4480004, 3.398512,
+          3.3629084, 3.3024743, 3.1935966, 3.06435, 2.926986, 2.7813084,
+          2.6401021, 2.4995337, 2.3450487, 2.1873057]], dtype=np.float32)
+    filtered_signals = filtfilt(input_signals, 10.0, 1, fmax=1.0)
     assert filtered_signals == pytest.approx(expected_signals)
     # Test no critical frequency values returns unfiltered array
-    unfiltered_signals = filtfilt(input_signals, 4, 10.0)
+    unfiltered_signals = filtfilt(input_signals, 10.0, 1)
     assert unfiltered_signals == pytest.approx(input_signals)
 
 
@@ -58,6 +63,6 @@ def test_filtfilt_bad_shape() -> None:
         2.1, 4.3, 3.6, 2.3, 1.8, 4.5, 2.7, 0.3
     ], dtype=np.float32)
     with pytest.raises(ValueError) as exc_info:
-        filtfilt(array_1d, 4, 10.0, fmax=1.0)
+        filtfilt(array_1d, 10.0, 1, fmax=1.0)
     message = f'Input array must be 2-dimensional. Got shape: {array_1d.shape}'
     assert str(exc_info.value) == message

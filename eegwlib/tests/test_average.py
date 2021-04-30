@@ -11,12 +11,13 @@ from mffpy import Reader, XML
 import pytz
 
 from ..average import _average_reference, Averages
+from ..segment import seconds_to_samples
 
 
 @pytest.fixture
 def empty_averages() -> Averages:
     """Return `Averages` object with no averages added"""
-    center = 5
+    center = 0.05
     sr = 100.0
     bads = [4, 2, 17]
     averages = Averages(center=center, sr=sr, bads=bads)
@@ -82,7 +83,7 @@ def test_average_reference_bad_input() -> None:
 
 def test_averages_class_init() -> None:
     """Test initializing `Averages` object"""
-    center = 8
+    center = 1.0
     sr = 250.0
     bads = [33, 21, 2]
     averages = Averages(center=center, sr=sr, bads=bads)
@@ -135,14 +136,15 @@ def test_add_segments_of_different_shapes(empty_averages: Averages) -> None:
 
 def test_add_length_smaller_than_center(empty_averages: Averages) -> None:
     """Test adding average with length smaller than center"""
-    center = empty_averages.center
-    length = center - 1
+    center_samples = seconds_to_samples(empty_averages.center,
+                                        empty_averages.sampling_rate)
+    length = center_samples - 1
     category = 'catx'
     segments = [np.random.randn(5, length).astype(np.float32)]
     with pytest.raises(ValueError) as exc_info:
         empty_averages.add(category, segments)
-    message = f'Center ({center}) cannot be larger than length of the ' \
-              f'averaged data block ({length})'
+    message = f'Center ({center_samples} samples) cannot be larger than ' \
+              f'length of the averaged data block ({length} samples)'
     assert str(exc_info.value) == message
 
 

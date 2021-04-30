@@ -59,10 +59,10 @@ def butter(order: int, sr: float, fmin: Optional[float] = None,
         band = fmax
     else:
         raise ValueError('Neither fmin nor fmax provided.')
-    return signal.butter(order, band, btype=btype, output='sos')
+    return signal.butter(order, band, btype=btype, output='sos', fs=sr)
 
 
-def filtfilt(arr: np.ndarray, order: int, sr: float,
+def filtfilt(arr: np.ndarray, sr: float, order: int,
              fmin: Optional[float] = None,
              fmax: Optional[float] = None) -> np.ndarray:
     """Apply a forward-backward Butterworth filter to `arr`
@@ -71,10 +71,10 @@ def filtfilt(arr: np.ndarray, order: int, sr: float,
     ----------
     arr
         The array of signals to be filtered
-    order
-        Filter order
     sr
         Sampling rate of the input signals (cycles/sec)
+    order
+        Filter order
     fmin
         Lower critical frequency (Hz)
     fmax
