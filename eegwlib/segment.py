@@ -161,24 +161,44 @@ class Segmenter(mffpy.Reader):  # type: ignore
         for var, value in {'left': padl, 'right': padr}.items():
             if value < 0:
                 raise ValueError(f'Negative {var} padding: {value}')
+        times_by_epoch = self._sort_category_times_by_epoch(relative_times)
         segments = defaultdict(list)
         out_of_range_segs = defaultdict(list)
-        for epoch in self.epochs:
+        for epoch_idx, category_times in times_by_epoch.items():
+            epoch = self.epochs[epoch_idx]
             self.clear_loaded_data()
-            for cat, times in relative_times.items():
-                for time in times:
-                    if self.is_in_epoch(time, epoch):
-                        time_relative_to_epoch = time - epoch.t0
-                        if self.data_cache is None:
-                            self.load_filtered_epoch(epoch, order, fmin, fmax)
-                        try:
-                            segment = self._extract_segment_from_loaded_data(
-                                time_relative_to_epoch, padl, padr)
-                            segments[cat].append(segment)
-                        except IndexError:
-                            out_of_range_segs[cat].append(time)
+            self.load_filtered_epoch(epoch, order, fmin, fmax)
+            for category, time in category_times:
+                time_relative_to_epoch = time - epoch.t0
+                try:
+                    segment = self._extract_segment_from_loaded_data(
+                        time_relative_to_epoch, padl, padr
+                    )
+                    segments[category].append(segment)
+                except IndexError:
+                    out_of_range_segs[category].append(time)
         self.clear_loaded_data()
         return segments, out_of_range_segs
+
+    def _sort_category_times_by_epoch(self,
+                                      times_by_category: Dict[str, List[float]]
+                                      ) -> Dict[int, List[Tuple[str, float]]]:
+        """Sort dict of {category: times} into dict of {epoch idx: times}
+
+        Each relative time is converted to a tuple with (category, time)
+        to preserve the category names associated with each time
+        """
+        times_by_epoch = defaultdict(list)
+        for cat, times in times_by_category.items():
+            times = sorted(times)
+            epoch_idx = 0
+            for time in times:
+                while not self.is_in_epoch(time, self.epochs[epoch_idx]):
+                    epoch_idx += 1
+                times_by_epoch[epoch_idx].append((cat, time))
+        assert sum(map(len, times_by_category.values())) == \
+            sum(map(len, times_by_epoch.values()))
+        return times_by_epoch
 
     def is_in_epoch(self, relative_time: float, epoch: Epoch) -> bool:
         """Return `True` if `epoch` contains `relative_time`"""

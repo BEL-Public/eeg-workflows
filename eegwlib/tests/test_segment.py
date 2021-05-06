@@ -95,6 +95,18 @@ def test_data_cache(segmenter: Segmenter) -> None:
     assert str(exc_info.value) == 'No data loaded'
 
 
+def test_sort_category_times_by_epoch(segmenter: Segmenter) -> None:
+    """Test sorting times by category into times by epoch"""
+    times = {'cat1': [0.0, 0.3, 0.1],
+             'cat2': [0.7, 0.2, 0.5]}
+    times_by_epoch_expected = {
+        0: [('cat1', 0.0), ('cat1', 0.1), ('cat1', 0.3),
+            ('cat2', 0.2), ('cat2', 0.5), ('cat2', 0.7)]
+    }
+    times_by_epoch = segmenter._sort_category_times_by_epoch(times)
+    assert times_by_epoch == times_by_epoch_expected
+
+
 @pytest.mark.parametrize('fmin,fmax,data_expected', [
     (None, None, np.array(
         [[-1841.2826, -1841.1616],
