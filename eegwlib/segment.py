@@ -182,10 +182,7 @@ class Segmenter(mffpy.Reader):  # type: ignore
 
     def is_in_epoch(self, relative_time: float, epoch: Epoch) -> bool:
         """Return `True` if `epoch` contains `relative_time`"""
-        if epoch.t0 <= relative_time < epoch.t1:
-            return True
-        else:
-            return False
+        return epoch.t0 <= relative_time < epoch.t1
 
     def _extract_segment_from_loaded_data(self, center: float, padl: float,
                                           padr: float) -> np.ndarray:
