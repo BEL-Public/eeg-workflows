@@ -8,9 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Class `Segmenter` which adds segmentation capability to parent class `mffpy.reader`
 
-### Changed
-* Fixed bug in `eegwlib.filter.butter` to provide missing sampling rate arg
-
 ## [0.1.2] - 2021-04-19
 ### Added
 * `categories` argument to main ERP script for custom categories names

@@ -103,9 +103,9 @@ def test_data_cache(segmenter: Segmenter) -> None:
          [-980.4295, -979.7764]], dtype=np.float32
     )),
     (1.0, 20.0, np.array(
-        [[-4.01691243e-04, -3.91067035e-04],
-         [-2.76489911e-04, -2.69248238e-04],
-         [-1.92079911e-04, -1.87060723e-04]], dtype=np.float32
+        [[2.10289337e+02, 2.09430405e+02],
+         [1.58008759e+02, 1.57409149e+02],
+         [1.11948311e+02, 1.11571823e+02]], dtype=np.float32
     ))
 ])
 def test_extract_filtered_segments(segmenter: Segmenter, fmin: Optional[float],

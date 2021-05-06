@@ -59,7 +59,7 @@ def butter(order: int, sr: float, fmin: Optional[float] = None,
         band = fmax
     else:
         raise ValueError('Neither fmin nor fmax provided.')
-    return signal.butter(order, band, btype=btype, output='sos', fs=sr)
+    return signal.butter(order, band, btype=btype, output='sos')
 
 
 def filtfilt(arr: np.ndarray, sr: float, order: int,
