@@ -48,11 +48,9 @@ def extract_segment_from_array(arr: np.ndarray, center: float, padl: float,
     # Stop index of whole segment
     segment_stop_idx = right_start_idx + right_samples
     if segment_start_idx < 0:
-        raise OutOfRangeError('Requested segment extends '
-                              'beyond data block')
+        raise IndexError('Requested segment extends beyond data block')
     if segment_stop_idx > arr.shape[1]:
-        raise OutOfRangeError('Requested segment extends '
-                              'beyond data block')
+        raise IndexError('Requested segment extends beyond data block')
     segment_indices = np.array(range(segment_start_idx, segment_stop_idx))
     return arr.take(segment_indices, axis=1)
 
@@ -60,11 +58,6 @@ def extract_segment_from_array(arr: np.ndarray, center: float, padl: float,
 def seconds_to_samples(seconds: float, sr: float) -> int:
     """Convert seconds to samples, rounding to the nearest sample"""
     return int(np.round(seconds * sr))
-
-
-class OutOfRangeError(Exception):
-    """Raised when a requested block slice extends beyond data range"""
-    pass
 
 
 class Segmenter(mffpy.Reader):  # type: ignore
@@ -182,7 +175,7 @@ class Segmenter(mffpy.Reader):  # type: ignore
                             segment = self._extract_segment_from_loaded_data(
                                 time_relative_to_epoch, padl, padr)
                             segments[cat].append(segment)
-                        except OutOfRangeError:
+                        except IndexError:
                             out_of_range_segs[cat].append(time)
         self.clear_loaded_data()
         return segments, out_of_range_segs

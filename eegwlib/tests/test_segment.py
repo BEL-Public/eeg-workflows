@@ -4,8 +4,7 @@ from typing import Optional
 
 import numpy as np
 
-from ..segment import extract_segment_from_array, OutOfRangeError, \
-    seconds_to_samples, Segmenter
+from ..segment import extract_segment_from_array, seconds_to_samples, Segmenter
 
 
 def test_seconds_to_samples() -> None:
@@ -56,7 +55,7 @@ def test_extract_segment_out_of_range(padl: float, padr: float) -> None:
     array = np.random.randn(2, 10)
     center = 5.0
     sr = 1.0
-    with pytest.raises(OutOfRangeError) as exc_info:
+    with pytest.raises(IndexError) as exc_info:
         extract_segment_from_array(array, center, padl, padr, sr)
     assert str(exc_info.value) == 'Requested segment extends beyond data block'
 
