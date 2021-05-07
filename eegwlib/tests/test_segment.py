@@ -1,6 +1,5 @@
 import pytest
 from os.path import dirname, join
-from typing import Optional
 
 import numpy as np
 
@@ -61,10 +60,29 @@ def test_extract_segment_out_of_range(padl: float, padr: float) -> None:
 
 
 @pytest.fixture
-def segmenter() -> Segmenter:
-    """Return example `Segmenter` object"""
+def example_raw() -> str:
+    """Return path to example raw MFF"""
     examples_dir = join(dirname(__file__), '..', '..', 'examples')
-    return Segmenter(join(examples_dir, 'example_raw.mff'))
+    return join(examples_dir, 'example_raw.mff')
+
+
+@pytest.fixture
+def segmenter(example_raw: str) -> Segmenter:
+    """Return example `Segmenter` object"""
+    return Segmenter(example_raw, 0.004, 0.004, order=4, fmin=1.0, fmax=20.0)
+
+
+def test_init_segmenter_negative_padding(example_raw: str) -> None:
+    """Test negative padding throws `ValueError`"""
+    negative_pad = -0.1
+    with pytest.raises(ValueError) as exc_info:
+        Segmenter(example_raw, padl=negative_pad, padr=0.1)
+    message = f'Negative left padding: {negative_pad}'
+    assert str(exc_info.value) == message
+    with pytest.raises(ValueError) as exc_info:
+        Segmenter(example_raw, padl=0.1, padr=negative_pad)
+    message = f'Negative right padding: {negative_pad}'
+    assert str(exc_info.value) == message
 
 
 def test_is_in_epoch(segmenter: Segmenter) -> None:
@@ -78,14 +96,11 @@ def test_data_cache(segmenter: Segmenter) -> None:
     """Test load data block and clear data cache"""
     # Load data block into data cache
     epoch = segmenter.epochs[0]
-    order = 1
-    fmin = 0.1
-    fmax = 50.0
-    segmenter.load_filtered_epoch(epoch, order, fmin, fmax)
+    segmenter.load_filtered_epoch(epoch)
     loaded_data = segmenter.get_loaded_data()
     assert loaded_data.shape == (257, 224)
     with pytest.raises(AssertionError) as exc_info:
-        segmenter.load_filtered_epoch(epoch, order, fmin, fmax)
+        segmenter.load_filtered_epoch(epoch)
     assert str(exc_info.value) == 'A data block is already loaded. ' \
                                   'First, clear loaded data.'
     # Clear data cache
@@ -107,46 +122,20 @@ def test_sort_category_times_by_epoch(segmenter: Segmenter) -> None:
     assert times_by_epoch == times_by_epoch_expected
 
 
-@pytest.mark.parametrize('fmin,fmax,data_expected', [
-    (None, None, np.array(
-        [[-1841.2826, -1841.1616],
-         [-1388.2782, -1389.1216],
-         [-980.4295, -979.7764]], dtype=np.float32
-    )),
-    (1.0, 20.0, np.array(
-        [[2.10289337e+02, 2.09430405e+02],
-         [1.58008759e+02, 1.57409149e+02],
-         [1.11948311e+02, 1.11571823e+02]], dtype=np.float32
-    ))
-])
-def test_extract_filtered_segments(segmenter: Segmenter, fmin: Optional[float],
-                                   fmax: Optional[float],
-                                   data_expected: np.ndarray) -> None:
-    """Test extracting filtered segments `Segmenter` object"""
+def test_extract_segments(segmenter: Segmenter) -> None:
+    """Test extracting segments from `Segmenter` object"""
     in_range_time = 0.4
     out_of_range_time = 0.895
     times = {'cat1': [in_range_time, out_of_range_time],
              'cat2': [in_range_time, out_of_range_time]}
-    padl = 0.004
-    padr = 0.004
-    in_range_segs, out_of_range_segs = segmenter.extract_segments(
-        times, padl, padr, fmin=fmin, fmax=fmax
+    in_range_segs, out_of_range_segs = segmenter.extract_segments(times)
+    data_expected = np.array(
+        [[2.10289337e+02, 2.09430405e+02],
+         [1.58008759e+02, 1.57409149e+02],
+         [1.11948311e+02, 1.11571823e+02]], dtype=np.float32
     )
     for cat in times:
         assert len(in_range_segs[cat]) == 1
         assert in_range_segs[cat][0][:3] == pytest.approx(data_expected)
         assert len(out_of_range_segs[cat]) == 1
         assert out_of_range_segs[cat][0] == out_of_range_time
-
-
-def test_extract_segments_negative_padding(segmenter: Segmenter) -> None:
-    """Test negative padding throws `ValueError`"""
-    negative_pad = -0.1
-    with pytest.raises(ValueError) as exc_info:
-        segmenter.extract_segments(dict(), padl=negative_pad, padr=0.1)
-    message = f'Negative left padding: {negative_pad}'
-    assert str(exc_info.value) == message
-    with pytest.raises(ValueError) as exc_info:
-        segmenter.extract_segments(dict(), padl=0.1, padr=negative_pad)
-    message = f'Negative right padding: {negative_pad}'
-    assert str(exc_info.value) == message

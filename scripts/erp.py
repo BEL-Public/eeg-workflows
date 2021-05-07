@@ -135,7 +135,8 @@ if len(opt.labels) != len(category_names):
 categories = dict(zip(category_names, opt.labels))
 
 # Read raw input file
-raw = Segmenter(opt.input_file)
+raw = Segmenter(opt.input_file, opt.left_padding, opt.right_padding,
+                order=opt.filter_order, fmin=opt.highpass, fmax=opt.lowpass)
 sampling_rate = raw.sampling_rates['EEG']
 
 # Get history info if present
@@ -170,10 +171,7 @@ for cat, label in categories.items():
 
 # Extract data segments from filtered epochs
 segment_start = pytz.utc.localize(datetime.utcnow())
-segments, out_of_bounds_segs = raw.extract_segments(
-    times_by_category, opt.left_padding, opt.right_padding,
-    order=opt.filter_order, fmin=opt.highpass, fmax=opt.lowpass
-)
+segments, out_of_bounds_segs = raw.extract_segments(times_by_category)
 segment_end = pytz.utc.localize(datetime.utcnow())
 
 # Check if any categories have no segments

@@ -33,7 +33,7 @@ def extract_segment_from_array(arr: np.ndarray, center: float, padl: float,
     ------
     ValueError
         If the loaded data block is not a 2-dimensional array
-    OutOfRangeError
+    IndexError
         If the requested segment extends beyond the data block
     """
     if arr.ndim != 2:
@@ -64,8 +64,42 @@ class Segmenter(mffpy.Reader):  # type: ignore
     """Subclass of `mffpy.Reader` that adds functionality to extract
     segments"""
 
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, padl: float, padr: float,
+                 order: int = 4, fmin: Optional[float] = None,
+                 fmax: Optional[float] = None) -> None:
+        """Initialize `Segmenter` object
+
+        `order`, `fmin`, and `fmax` specify filter parameters for the filter
+        to be applied to the raw signals before extracting segments. No filter
+        will be applied if `fmin` and `fmax` are both set to `None`.
+
+        Parameters
+        ----------
+        padl
+            Left time padding (seconds) of data segments to be extracted
+        padr
+            Right time padding (seconds) of data segments to be extracted
+        order
+            Filter order
+        fmin
+            Lower critical frequency (Hz) for IIR filter
+        fmax
+            Upper critical frequency (Hz) for IIR filter
+
+        Raises
+        ------
+        ValueError
+            If `padl` or `padr` are negative
+        """
         super().__init__(filename)
+        for var, value in {'left': padl, 'right': padr}.items():
+            if value < 0:
+                raise ValueError(f'Negative {var} padding: {value}')
+        self.padl = padl
+        self.padr = padr
+        self.order = order
+        self.fmin = fmin
+        self.fmax = fmax
         self._data_cache = None
 
     @property
@@ -79,26 +113,18 @@ class Segmenter(mffpy.Reader):  # type: ignore
         Raises
         ------
         AssertionError
-            If no data is loaded
+            If no data are loaded
         """
         assert self.data_cache is not None, 'No data loaded'
         return self.data_cache
 
-    def load_filtered_epoch(self, epoch: Epoch, order: int,
-                            fmin: Optional[float],
-                            fmax: Optional[float]) -> None:
+    def load_filtered_epoch(self, epoch: Epoch) -> None:
         """Read and filter all EEG data in `epoch`, load into data cache
 
         Parameters
         ----------
         epoch
             The epoch to be loaded
-        order
-            Filter order
-        fmin
-            Lower critical frequency (Hz) for IIR filter
-        fmax
-            Upper critical frequency (Hz) for IIR filter
 
         Raises
         ------
@@ -110,38 +136,22 @@ class Segmenter(mffpy.Reader):  # type: ignore
         data = self.get_physical_samples_from_epoch(epoch, channels=['EEG'])
         eeg_data = data['EEG'][0]
         self._data_cache = filtfilt(eeg_data, self.sampling_rates['EEG'],
-                                    order, fmin, fmax)
+                                    self.order, self.fmin, self.fmax)
 
     def clear_loaded_data(self) -> None:
         """Clear data from data cache"""
         self._data_cache = None
 
-    def extract_segments(self, relative_times: Dict[str, List[float]],
-                         padl: float, padr: float, order: int = 4,
-                         fmin: Optional[float] = None,
-                         fmax: Optional[float] = None
+    def extract_segments(self, relative_times: Dict[str, List[float]]
                          ) -> Tuple[Dict[str, List[np.ndarray]],
                                     Dict[str, List[float]]]:
         """Extract segments around relative times
-
-        If `fmin` and/or `fmax` are specified, the raw signals are filtered
-        before segments are extracted.
 
         Parameters
         ----------
         relative_times
             Dictionary of {category name: times (seconds)}. Times are relative
             to start of recording.
-        padl
-            Left time padding (seconds)
-        padr
-            Right time padding (seconds)
-        order
-            Filter order
-        fmin
-            Lower critical frequency (Hz) for IIR filter
-        fmax
-            Upper critical frequency (Hz) for IIR filter
 
         Returns
         -------
@@ -152,27 +162,19 @@ class Segmenter(mffpy.Reader):  # type: ignore
             Dictionary of {category name: relative times} with relative times
             for which segments extended beyond the data range and could not
             be extracted
-
-        Raises
-        ------
-        ValueError
-            If `padl` or `padr` are negative
         """
-        for var, value in {'left': padl, 'right': padr}.items():
-            if value < 0:
-                raise ValueError(f'Negative {var} padding: {value}')
         times_by_epoch = self._sort_category_times_by_epoch(relative_times)
         segments = defaultdict(list)
         out_of_range_segs = defaultdict(list)
         for epoch_idx, category_times in times_by_epoch.items():
             epoch = self.epochs[epoch_idx]
             self.clear_loaded_data()
-            self.load_filtered_epoch(epoch, order, fmin, fmax)
+            self.load_filtered_epoch(epoch)
             for category, time in category_times:
                 time_relative_to_epoch = time - epoch.t0
                 try:
                     segment = self._extract_segment_from_loaded_data(
-                        time_relative_to_epoch, padl, padr
+                        time_relative_to_epoch
                     )
                     segments[category].append(segment)
                 except IndexError:
@@ -204,8 +206,8 @@ class Segmenter(mffpy.Reader):  # type: ignore
         """Return `True` if `epoch` contains `relative_time`"""
         return epoch.t0 <= relative_time < epoch.t1
 
-    def _extract_segment_from_loaded_data(self, center: float, padl: float,
-                                          padr: float) -> np.ndarray:
+    def _extract_segment_from_loaded_data(self, center: float) -> np.ndarray:
         """Extract a segment from data block in data cache"""
-        return extract_segment_from_array(self.get_loaded_data(), center, padl,
-                                          padr, self.sampling_rates['EEG'])
+        return extract_segment_from_array(self.get_loaded_data(), center,
+                                          self.padl, self.padr,
+                                          self.sampling_rates['EEG'])
