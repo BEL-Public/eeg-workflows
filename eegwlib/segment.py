@@ -51,8 +51,7 @@ def extract_segment_from_array(arr: np.ndarray, center: float, padl: float,
         raise IndexError('Requested segment extends beyond data block')
     if segment_stop_idx > arr.shape[1]:
         raise IndexError('Requested segment extends beyond data block')
-    segment_indices = np.array(range(segment_start_idx, segment_stop_idx))
-    return arr.take(segment_indices, axis=1)
+    return arr[:, segment_start_idx:segment_stop_idx]
 
 
 def seconds_to_samples(seconds: float, sr: float) -> int:
