@@ -165,8 +165,7 @@ class Segmenter(mffpy.Reader):  # type: ignore
         times_by_epoch = self._sort_category_times_by_epoch(relative_times)
         segments = defaultdict(list)
         out_of_range_segs = defaultdict(list)
-        for epoch_idx, category_times in times_by_epoch.items():
-            epoch = self.epochs[epoch_idx]
+        for epoch, category_times in times_by_epoch.items():
             self.clear_loaded_data()
             self.load_filtered_epoch(epoch)
             for category, time in category_times:
@@ -183,8 +182,9 @@ class Segmenter(mffpy.Reader):  # type: ignore
 
     def _sort_category_times_by_epoch(self,
                                       times_by_category: Dict[str, List[float]]
-                                      ) -> Dict[int, List[Tuple[str, float]]]:
-        """Sort dict of {category: times} into dict of {epoch idx: times}
+                                      ) -> Dict[Epoch,
+                                                List[Tuple[str, float]]]:
+        """Sort dict of {category: times} into dict of {epoch: times}
 
         Each relative time is converted to a tuple with (category, time)
         to preserve the category names associated with each time
@@ -196,7 +196,7 @@ class Segmenter(mffpy.Reader):  # type: ignore
             for time in times:
                 while not self.is_in_epoch(time, self.epochs[epoch_idx]):
                     epoch_idx += 1
-                times_by_epoch[epoch_idx].append((cat, time))
+                times_by_epoch[self.epochs[epoch_idx]].append((cat, time))
         assert sum(map(len, times_by_category.values())) == \
             sum(map(len, times_by_epoch.values()))
         return times_by_epoch
