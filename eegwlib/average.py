@@ -5,6 +5,8 @@ from datetime import datetime
 import numpy as np
 from mffpy.writer import BinWriter, Writer
 
+from .segment import seconds_to_samples
+
 
 def _average_reference(data: np.ndarray, bads: List[int]) -> np.ndarray:
     """Rereference `data` to an average reference
@@ -46,18 +48,18 @@ class Averages:
 
     - Sampling rate of the data
     - Shape of the averaged data block
-    - Position of the event around which the average is created
+    - Position of the segmentation event
     """
 
-    def __init__(self, center: int, sr: float, bads: List[int] = []) -> None:
+    def __init__(self, center: float, sr: float,
+                 bads: Optional[List[int]] = None) -> None:
         """Create instance of `Averages`
 
         Parameters
         ----------
         center
-            The position of the event around which the average is created
-            in samples relative to the beginning of the averaged data block.
-            This property is shared for all added averages.
+            The position of the segmentation event for all averages to be added
+            in seconds relative to the beginning of the averaged data block.
         sr
             Sampling rate (cycles/sec)
         bads
@@ -65,7 +67,7 @@ class Averages:
         """
         self.center = center
         self.sampling_rate = sr
-        self.bads = bads
+        self.bads = bads or []
         self._data: Dict[str, np.ndarray] = OrderedDict()
         self._num_segments: Dict[str, int] = OrderedDict()
         self._average_reference_on = False
@@ -105,10 +107,12 @@ class Averages:
         average = np.mean(np.array(segments), axis=0)
         if len(self.data) == 0:
             # This is the first average being added
-            if self.center > average.shape[1]:
-                raise ValueError(f'Center ({self.center}) cannot be larger '
-                                 'than length of the averaged data block '
-                                 f'({average.shape[1]})')
+            center_samples = seconds_to_samples(self.center,
+                                                self.sampling_rate)
+            if center_samples > average.shape[1]:
+                raise ValueError(f'Center ({center_samples} samples) cannot '
+                                 'be larger than length of the averaged data '
+                                 f'block ({average.shape[1]} samples)')
         else:
             # There are previously added averages
             first_average = next(iter(self.data.values()))
@@ -163,8 +167,7 @@ class Averages:
             num_samples = self.data[category].shape[1]
             duration = int(1e6 * num_samples / self.sampling_rate)
             end_time = begin_time + duration
-            event_time = begin_time + \
-                int(1e6 * self.center / self.sampling_rate)
+            event_time = begin_time + int(1e6 * self.center)
             content[category] = [
                 {
                     'status': 'unedited',

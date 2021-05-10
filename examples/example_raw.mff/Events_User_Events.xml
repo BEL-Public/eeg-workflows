@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<eventTrack xmlns="http://www.egi.com/event_mff" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <name>User Events</name>
+    <trackType>EVNT</trackType>
+    <event>
+        <beginTime>2020-01-29T06:19:39.310537-08:00</beginTime>
+        <duration>1000</duration>
+        <relativeBeginTime>108000</relativeBeginTime>
+        <code>cat2</code>
+        <label>category_2</label>
+        <segmentationEvent>false</segmentationEvent>
+    </event>
+    <event>
+        <beginTime>2020-01-29T06:19:39.418537-08:00</beginTime>
+        <duration>1000</duration>
+        <relativeBeginTime>216000</relativeBeginTime>
+        <code>cat1</code>
+        <label>category_1</label>
+        <segmentationEvent>false</segmentationEvent>
+    </event>
+    <event>
+        <beginTime>2020-01-29T06:19:39.518537-08:00</beginTime>
+        <duration>1000</duration>
+        <relativeBeginTime>316000</relativeBeginTime>
+        <code>cat1</code>
+        <label>category_1</label>
+        <segmentationEvent>false</segmentationEvent>
+    </event>
+    <event>
+        <beginTime>2020-01-29T06:19:39.650537-08:00</beginTime>
+        <duration>1000</duration>
+        <relativeBeginTime>448000</relativeBeginTime>
+        <code>cat1</code>
+        <label>category_1</label>
+        <segmentationEvent>false</segmentationEvent>
+    </event>
+    <event>
+        <beginTime>2020-01-29T06:19:39.794537-08:00</beginTime>
+        <duration>1000</duration>
+        <relativeBeginTime>592000</relativeBeginTime>
+        <code>cat2</code>
+        <label>category_2</label>
+        <segmentationEvent>false</segmentationEvent>
+    </event>
+    <event>
+        <beginTime>2020-01-29T06:19:39.874537-08:00</beginTime>
+        <duration>1000</duration>
+        <relativeBeginTime>672000</relativeBeginTime>
+        <code>cat2</code>
+        <label>category_2</label>
+        <segmentationEvent>false</segmentationEvent>
+    </event>
+</eventTrack>
