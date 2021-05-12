@@ -10,7 +10,7 @@ event markers of specified labels with padding intervals `left-padding` and
 argument is provided, bad segments are dropped based on the specified
 peak-to-peak amplitude criterion.  Averaging is performed per label.
 Then, the data are re-referenced to an average reference if `average-ref` flag
-is present.  These are then written to the output file path as an .mff.
+is present.  The averages are then written to the output file path as an .mff.
 """
 
 from collections import defaultdict
@@ -20,14 +20,13 @@ from functools import partial
 from typing import List, Union
 from xml.etree.ElementTree import parse
 
-from mffpy import Reader, XML
+from mffpy import XML
 from mffpy.xml_files import EventTrack
 import pytz
 
-from eegwlib.filter import filtfilt
-from eegwlib.segment import slice_block
 from eegwlib.artifact_detection import detect_bad_channels
 from eegwlib.average import Averages
+from eegwlib.segment import seconds_to_samples, Segmenter
 
 from argparse import ArgumentParser
 
@@ -135,56 +134,24 @@ if len(opt.labels) != len(category_names):
                      f'equal number of categories {category_names}')
 categories = dict(zip(category_names, opt.labels))
 
-# Read raw input file
-raw = Reader(opt.input_file)
-sampling_rate = raw.sampling_rates['EEG']
+# Read input file
+segmenter = Segmenter(opt.input_file, opt.left_padding, opt.right_padding,
+                      order=opt.filter_order, fmin=opt.highpass,
+                      fmax=opt.lowpass)
+sampling_rate = segmenter.sampling_rates['EEG']
 
 # Get history info if present
-if 'history.xml' in raw.directory.listdir():
-    with raw.directory.filepointer('history') as fp:
+if 'history.xml' in segmenter.directory.listdir():
+    with segmenter.directory.filepointer('history') as fp:
         history = XML.from_file(fp).entries
 else:
     history = []
 
-# Get raw signal blocks and apply filter if specified
-filter_start = pytz.utc.localize(datetime.utcnow())
-data = []
-for epoch in raw.epochs:
-    signals = raw.get_physical_samples_from_epoch(epoch)['EEG'][0]
-    filtered_signals = filtfilt(signals, order=opt.filter_order,
-                                sr=sampling_rate, fmin=opt.highpass,
-                                fmax=opt.lowpass)
-    data.append(
-        {
-            't0': epoch.t0,
-            't1': epoch.t1,
-            'data': filtered_signals
-        }
-    )
-filter_end = pytz.utc.localize(datetime.utcnow())
-
-for filt, freq in {'Highpass': opt.highpass, 'Lowpass': opt.lowpass}.items():
-    if freq:
-        filter_entry = dict(
-            name=f'ERP Workflow {filt} Filter',
-            kind='Transformation',
-            method='Filtering',
-            beginTime=filter_start.astimezone(opt.timezone),
-            endTime=filter_end.astimezone(opt.timezone),
-            sourceFiles=[opt.input_file],
-            settings=[f'Filter Setting: {freq} Hz {filt}',
-                      'Filter Type: IIR Butterworth',
-                      f'Filter Order: {opt.filter_order}']
-        )
-        if opt.verbose:
-            print(filter_entry)
-        history.append(filter_entry)
-
 # Extract relative times for events of specified labels
 all_codes = set()
 event_times = defaultdict(list)
-for file in raw.directory.files_by_type['.xml']:
-    with raw.directory.filepointer(splitext(file)[0]) as fp:
+for file in segmenter.directory.files_by_type['.xml']:
+    with segmenter.directory.filepointer(splitext(file)[0]) as fp:
         xml_root = parse(fp).getroot()
         if not xml_root.tag == '{http://www.egi.com/event_mff}eventTrack':
             continue
@@ -193,7 +160,7 @@ for file in raw.directory.files_by_type['.xml']:
             all_codes.add(event['code'])
             if event['code'] in opt.labels:
                 event_times[event['code']].append((
-                    event['beginTime'] - raw.startdatetime
+                    event['beginTime'] - segmenter.startdatetime
                 ).total_seconds())
 
 times_by_category = {}
@@ -203,32 +170,9 @@ for cat, label in categories.items():
                          f'Valid event labels: {all_codes}')
     times_by_category[cat] = sorted(event_times[label])
 
-# Extract data segments
+# Extract data segments from filtered epochs
 segment_start = pytz.utc.localize(datetime.utcnow())
-out_of_bounds_segs = defaultdict(list)
-segments = defaultdict(list)
-for cat, times in times_by_category.items():
-    block_idx = 0
-    block = data[block_idx]
-    for time in times:
-        while time > block['t1']:
-            # Iterate through data blocks until we
-            # find the one that contains time
-            block_idx += 1
-            block = data[block_idx]
-        assert block['t0'] < time < block['t1']
-        # Extract the segment centered on time
-        segment = slice_block(
-            block['data'],
-            center=time - block['t0'],
-            padl=opt.left_padding,
-            padr=opt.right_padding,
-            sr=sampling_rate
-        )
-        if segment is not None:
-            segments[cat].append(segment)
-        else:
-            out_of_bounds_segs[cat].append(time)
+segments, out_of_bounds_segs = segmenter.extract_segments(times_by_category)
 segment_end = pytz.utc.localize(datetime.utcnow())
 
 # Check if any categories have no segments
@@ -237,6 +181,25 @@ for cat in categories:
         raise ValueError(f'All segments for category "{cat}" '
                          'extended beyond data range')
 
+# Log filtering
+for filt, freq in {'Highpass': opt.highpass, 'Lowpass': opt.lowpass}.items():
+    if freq:
+        filter_entry = dict(
+            name=f'ERP Workflow {filt} Filter',
+            kind='Transformation',
+            method='Filtering',
+            beginTime=segment_start.astimezone(opt.timezone),
+            endTime=segment_end.astimezone(opt.timezone),
+            sourceFiles=[opt.input_file],
+            settings=[f'Filter Setting: {freq} Hz {filt}',
+                      'Filter Type: IIR Butterworth',
+                      f'Filter Order: {opt.filter_order}']
+        )
+        if opt.verbose:
+            print(filter_entry)
+        history.append(filter_entry)
+
+# Log segmentation
 segmentation_settings = []
 segmentation_results = [f'Segmented to {len(segments)} categories and '
                         f'{sum(map(len, segments.values()))} segments']
@@ -309,8 +272,8 @@ if opt.artifact_detection is not None:
         print(artifact_entry)
     history.append(artifact_entry)
 
-# Get bad channels from raw MFF
-with raw.directory.filepointer('info1') as fp:
+# Get bad channels from input file
+with segmenter.directory.filepointer('info1') as fp:
     data_info = XML.from_file(fp)
 if data_info.generalInformation['channel_type'] != 'EEG':
     raise ValueError('Expected channel type for "info1.xml" is "EEG". Instead '
@@ -327,8 +290,9 @@ else:
 
 # Create averages for each label
 average_start = pytz.utc.localize(datetime.utcnow())
-averages = Averages(center=int(opt.left_padding * sampling_rate),
-                    sr=sampling_rate, bads=bad_channels)
+# Snap to nearest sample
+center = seconds_to_samples(opt.left_padding, sampling_rate) / sampling_rate
+averages = Averages(center, sampling_rate, bads=bad_channels)
 for cat, data in segments.items():
     averages.add(cat, data)
 average_end = pytz.utc.localize(datetime.utcnow())
@@ -370,8 +334,8 @@ if opt.average_ref:
     history.append(reference_entry)
 
 # Write out the averaged data
-startdatetime = raw.startdatetime
-with raw.directory.filepointer('sensorLayout') as fp:
+startdatetime = segmenter.startdatetime
+with segmenter.directory.filepointer('sensorLayout') as fp:
     sensor_layout = XML.from_file(fp)
 device = sensor_layout.name
 print(f'\nWriting averaged data to {opt.output_file} ...')

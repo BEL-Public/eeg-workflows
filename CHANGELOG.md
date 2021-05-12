@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2021-05-10
+### Added
+* Class `Segmenter` which adds segmentation capability to parent class `mffpy.Reader`
+
 ## [0.1.2] - 2021-04-19
 ### Added
 * `categories` argument to main ERP script for custom categories names
@@ -29,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Dockerfile for containerization
 * Github workflow to run tests
 
-[Unreleased]: https://github.com/BEL-CO/eeg-workflows/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/BEL-CO/eeg-workflows/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/BEL-CO/eeg-workflows/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/BEL-CO/eeg-workflows/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/BEL-CO/eeg-workflows/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/BEL-CO/eeg-workflows/releases/tag/v0.1.0
