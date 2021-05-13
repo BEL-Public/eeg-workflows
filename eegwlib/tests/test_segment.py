@@ -115,8 +115,8 @@ def test_sort_category_times_by_epoch(segmenter: Segmenter) -> None:
     times = {'cat1': [0.0, 0.3, 0.1],
              'cat2': [0.7, 0.2, 0.5]}
     times_by_epoch_expected = {
-        0: [('cat1', 0.0), ('cat1', 0.1), ('cat1', 0.3),
-            ('cat2', 0.2), ('cat2', 0.5), ('cat2', 0.7)]
+        segmenter.epochs[0]: [('cat1', 0.0), ('cat1', 0.1), ('cat1', 0.3),
+                              ('cat2', 0.2), ('cat2', 0.5), ('cat2', 0.7)]
     }
     times_by_epoch = segmenter._sort_category_times_by_epoch(times)
     assert times_by_epoch == times_by_epoch_expected

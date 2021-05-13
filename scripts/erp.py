@@ -134,14 +134,15 @@ if len(opt.labels) != len(category_names):
                      f'equal number of categories {category_names}')
 categories = dict(zip(category_names, opt.labels))
 
-# Read raw input file
-raw = Segmenter(opt.input_file, opt.left_padding, opt.right_padding,
-                order=opt.filter_order, fmin=opt.highpass, fmax=opt.lowpass)
-sampling_rate = raw.sampling_rates['EEG']
+# Read input file
+segmenter = Segmenter(opt.input_file, opt.left_padding, opt.right_padding,
+                      order=opt.filter_order, fmin=opt.highpass,
+                      fmax=opt.lowpass)
+sampling_rate = segmenter.sampling_rates['EEG']
 
 # Get history info if present
-if 'history.xml' in raw.directory.listdir():
-    with raw.directory.filepointer('history') as fp:
+if 'history.xml' in segmenter.directory.listdir():
+    with segmenter.directory.filepointer('history') as fp:
         history = XML.from_file(fp).entries
 else:
     history = []
@@ -149,8 +150,8 @@ else:
 # Extract relative times for events of specified labels
 all_codes = set()
 event_times = defaultdict(list)
-for file in raw.directory.files_by_type['.xml']:
-    with raw.directory.filepointer(splitext(file)[0]) as fp:
+for file in segmenter.directory.files_by_type['.xml']:
+    with segmenter.directory.filepointer(splitext(file)[0]) as fp:
         xml_root = parse(fp).getroot()
         if not xml_root.tag == '{http://www.egi.com/event_mff}eventTrack':
             continue
@@ -159,7 +160,7 @@ for file in raw.directory.files_by_type['.xml']:
             all_codes.add(event['code'])
             if event['code'] in opt.labels:
                 event_times[event['code']].append((
-                    event['beginTime'] - raw.startdatetime
+                    event['beginTime'] - segmenter.startdatetime
                 ).total_seconds())
 
 times_by_category = {}
@@ -171,7 +172,7 @@ for cat, label in categories.items():
 
 # Extract data segments from filtered epochs
 segment_start = pytz.utc.localize(datetime.utcnow())
-segments, out_of_bounds_segs = raw.extract_segments(times_by_category)
+segments, out_of_bounds_segs = segmenter.extract_segments(times_by_category)
 segment_end = pytz.utc.localize(datetime.utcnow())
 
 # Check if any categories have no segments
@@ -271,8 +272,8 @@ if opt.artifact_detection is not None:
         print(artifact_entry)
     history.append(artifact_entry)
 
-# Get bad channels from raw MFF
-with raw.directory.filepointer('info1') as fp:
+# Get bad channels from input file
+with segmenter.directory.filepointer('info1') as fp:
     data_info = XML.from_file(fp)
 if data_info.generalInformation['channel_type'] != 'EEG':
     raise ValueError('Expected channel type for "info1.xml" is "EEG". Instead '
@@ -333,8 +334,8 @@ if opt.average_ref:
     history.append(reference_entry)
 
 # Write out the averaged data
-startdatetime = raw.startdatetime
-with raw.directory.filepointer('sensorLayout') as fp:
+startdatetime = segmenter.startdatetime
+with segmenter.directory.filepointer('sensorLayout') as fp:
     sensor_layout = XML.from_file(fp)
 device = sensor_layout.name
 print(f'\nWriting averaged data to {opt.output_file} ...')
