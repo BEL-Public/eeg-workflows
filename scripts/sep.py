@@ -16,7 +16,7 @@ parser.add_argument('input_file', type=str, help='Path to the input MFF file.')
 # Read the raw MFF
 fname = parser.parse_args().input_file
 raw = mne.io.read_raw_egi(fname, preload=True)
-events = mne.find_events(raw)
+events = mne.find_events(raw, shortest_event=1)
 
 # Highpass filter
 raw.filter(l_freq=0.1, h_freq=None, picks=['eeg'])
