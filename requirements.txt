@@ -1,5 +1,6 @@
-mne==0.21
+mne>=0.23
 numpy==1.19.2
 pytz==2020.1
 scipy==1.5.2
 mffpy==0.5.8
+matplotlib>=3.4.2
