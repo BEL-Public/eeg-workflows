@@ -11,6 +11,19 @@ argument is provided, bad segments are dropped based on the specified
 peak-to-peak amplitude criterion.  Averaging is performed per label.
 Then, the data are re-referenced to an average reference if `average-ref` flag
 is present.  The averages are then written to the output file path as an .mff.
+
+Copyright 2021 Brain Electrophysiology Laboratory Company LLC
+
+Licensed under the ApacheLicense, Version 2.0(the "License");
+you may not use this module except in compliance with the License.
+You may obtain a copy of the License at:
+
+http: // www.apache.org / licenses / LICENSE - 2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ANY KIND, either express or implied.
 """
 
 from collections import defaultdict

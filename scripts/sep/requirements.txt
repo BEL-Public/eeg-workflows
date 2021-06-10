@@ -1,0 +1,2 @@
+git+https://github.com/mne-tools/mne-python@main
+matplotlib>=3.3.0
