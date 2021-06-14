@@ -40,19 +40,39 @@ $ python setup.py install
 ```
 
 ## Containerization
-We containerize all scripts with docker.  `make docker-build` builds the docker
-image able to execute any of the scripts.
 
-To execute a script in a container, you need to map a folder with the input
-data into the container at "/app/volume".  This folder will be set as root for
-the execution of the script.  Here's an example that will print the options of
-"scripts/sws-pilot-workflow.py".
+We containerize each workflow with Docker. If you would like to containerize
+your own workflow, simply add a `Dockerfile` to your workflow directory. See
+some of the other scripts for an example of what this should look like.
+
+### Building the Image
+
+You can build the image for the example workflow like this:
+
 ```bash
-docker run -it \
-       -v `pwd`/volume:/app/volume \
-       docker.belco.tech/eegworkflow:latest \
-       sws-pilot-workflow.py -h
+cd workflows/example_workflow
+docker build -t example_workflow .
 ```
+
+### Running the Container
+
+Once the image is built, you should be able to run the script in a container.
+Each of the images assumes that you will mount a `volume/` directory to
+`/volume/` in the container which will be the directory in which the script will
+run. All input files should be placed here. This will also be where output files
+are created. You can run the example workflow in a container like this:
+
+```bash
+docker run \
+    --rm \
+    -v "$(pwd)/volume:/volume" \
+    example_workflow \
+    --input-file input.txt \
+    --output-file output.txt
+```
+
+If `volume/input.txt` exists, you should see a new file `output.txt` in the
+`volume/` directory after the container finishes.
 
 ## Data
 The experiment-specific scripts in this repository each correspond to an
