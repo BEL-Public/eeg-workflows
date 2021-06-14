@@ -99,7 +99,7 @@ by the workflow script, the `setup.py` script specifies the version and the
 script to be containerized, and the `Dockerfile` contains commands to build the
 workflow image.
 ```bash
-├── worfklow
+├── workflow
 │   ├── __init__.py
 │   ├── workflow.py
 │   ├── requirements.txt
@@ -120,7 +120,7 @@ branch of the upstream repository.
 
 ## Getting Started with EEG Analysis Python Scripting
 If you are new to Python scripting for EEG analysis, it is a good idea to check
-out the existing [worfklows](workflows) for some examples of how to construct
+out the existing [workflows](workflows) for some examples of how to construct
 one. A powerful library of tools for EEG analysis in Python is
 [MNE-Python](https://mne.tools/stable/index.html). MNE-Python has an extensive,
 growing suite of functions and methods for cleaning, transforming, and
