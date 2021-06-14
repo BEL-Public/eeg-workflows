@@ -60,7 +60,12 @@ Once the image is built, you should be able to run the script in a container.
 Each of the images assumes that you will mount a `volume/` directory to
 `/volume/` in the container which will be the directory in which the script will
 run. All input files should be placed here. This will also be where output files
-are created. You can run the example workflow in a container like this:
+are created.
+
+In order to run the example workflow, the first thing you should do is create a
+new directory `volume/` under `workflows/example_workflow/`. Then, place an
+input file, such as `input.txt`, in this directory. Finally, you can run the
+workflow in a container like this:
 
 ```bash
 docker run \
@@ -71,8 +76,8 @@ docker run \
     --output-file output.txt
 ```
 
-If `volume/input.txt` exists, you should see a new file `output.txt` in the
-`volume/` directory after the container finishes.
+You should then see a new file, `output.txt`, in the `volume/` directory after
+the container finishes.
 
 ## Data
 The experiment-specific scripts in this repository each correspond to an
