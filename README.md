@@ -41,6 +41,9 @@ $ python setup.py install
 
 ## Containerization
 
+First, follow the instructions [here](https://docs.docker.com/get-docker/) to
+set up Docker on your local machine if you haven't already.
+
 We containerize each workflow with Docker. If you would like to containerize
 your own workflow, simply add a `Dockerfile` to your workflow directory. See
 some of the other scripts for an example of what this should look like.
