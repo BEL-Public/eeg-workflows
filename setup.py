@@ -1,8 +1,13 @@
-from distutils.core import setup
+import setuptools
 
-setup(
-    name='eeg-workflows',
-    version='0.1.3-develop',
+requirements = open('requirements.txt').read().split('\n')
+
+setuptools.setup(
+    name='eegwlib',
+    version='0.1.3',
+    author='Evan Hathaway',
+    author_email='evan.hathaway@bel.company',
+    description='Helper functions for EEG workflows',
+    install_requires=requirements,
     packages=['eegwlib'],
-    scripts=['scripts/sws-pilot-workflow.py', 'scripts/erp.py'],
 )

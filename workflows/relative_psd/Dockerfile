@@ -5,11 +5,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 WORKDIR /app
 
-COPY eegwlib eegwlib
-COPY scripts scripts
+COPY relative_psd.py .
 COPY setup.py .
 RUN pip install .
 
-COPY docker/entrypoint.sh .
+WORKDIR /volume
 
-ENTRYPOINT ["/bin/bash", "entrypoint.sh"]
+ENTRYPOINT ["relative_psd.py"]
